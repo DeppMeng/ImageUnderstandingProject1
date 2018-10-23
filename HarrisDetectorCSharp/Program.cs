@@ -24,7 +24,7 @@ namespace HarrisDetectorCSharp
             GetImage(str);
             //RGB2Grey(image);
             List<int[,]> test = GetBGRList(image);
-            VisualizeBGRList(test);
+            VisualizeBGRList(test, "test1");
         }
 
         static void GetImage(string img)
@@ -125,14 +125,34 @@ namespace HarrisDetectorCSharp
             return result;
         }
 
-        static void VisualizeBGRList(List<int[,]> list)
+        static void VisualizeBGRList(List<int[,]> list, string name)
         {
             int[,] B = list[0];
             int[,] G = list[1];
             int[,] R = list[2];
             int iHeight = B.GetLength(0);
             int iWidth = B.GetLength(1);
+            byte[] PixelValues = new byte[iWidth * iHeight * 3];
 
+            int iPoint = 0;
+
+            for (int i = 0; i < iHeight; i++)
+            {
+                for (int j = 0; j < iWidth; j++)
+                {
+                    PixelValues[iPoint++] = Convert.ToByte(B[i, j]);
+                    PixelValues[iPoint++] = Convert.ToByte(G[i, j]);
+                    PixelValues[iPoint++] = Convert.ToByte(R[i, j]);
+                }
+            }
+
+            Bitmap bitmap = new Bitmap(iWidth, iHeight, PixelFormat.Format24bppRgb);
+            Rectangle newrect = new Rectangle(0, 0, iWidth, iHeight);
+            BitmapData newbmpData = bitmap.LockBits(newrect,
+                ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
+            IntPtr newiPtr = newbmpData.Scan0;
+            System.Runtime.InteropServices.Marshal.Copy(PixelValues, 0, newiPtr, PixelValues.Length);
+            bitmap.Save("C:/Depp Data/Others/Wallpaper/Lord of the Ring/"+name+".jpg", ImageFormat.Jpeg);
         }
     }
 }
