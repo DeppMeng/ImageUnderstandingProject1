@@ -8,8 +8,6 @@ using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing.Imaging;
-using MathNet.Numerics;
-using MathNet.Numerics.LinearAlgebra;
 
 namespace HarrisDetectorCSharp
 {
