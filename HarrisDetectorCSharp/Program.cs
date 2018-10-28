@@ -249,5 +249,26 @@ namespace HarrisDetectorCSharp
                 }
             return normalized_img;
         }
+
+        static Tuple<int[,], int[,], int[,]> GetAMatrix(Tuple<int[,], int[,]> gradient_matrix)
+        {
+            int[,] gradientX = gradient_matrix.Item1;
+            int[,] gradientY = gradient_matrix.Item2;
+            int iHeight = gradientY.GetLength(0);
+            int iWidth = gradientY.GetLength(1);
+            int[,] Ixx = new int[iHeight, iWidth];
+            int[,] Ixy = new int[iHeight, iWidth];
+            int[,] Iyy = new int[iHeight, iWidth];
+
+
+            for (int i = 0; i < iHeight; i++)
+                for (int j = 0; j < iWidth; j++)
+                {
+                    Ixx[i, j] = gradientX[i, j] * gradientX[i, j];
+                    Ixy[i, j] = gradientX[i, j] * gradientY[i, j];
+                    Iyy[i, j] = gradientY[i, j] * gradientY[i, j];
+                }
+            return Tuple.Create(Ixx, Ixy, Iyy);
+        }
     }
 }
