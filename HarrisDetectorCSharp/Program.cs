@@ -30,9 +30,14 @@ namespace HarrisDetectorCSharp
             //VisualizeBGRList(test, "test1");
             int[,] gradientX = new int[1000, 1600];
             int[,] gradientY = new int[1000, 1600];
-            Tuple<int[,], int[,]> gradient = GetGradient(test[0]);
-            VisualizeGreyImage(Normalize(gradient.Item1), "gradientx");
-            VisualizeGreyImage(Normalize(gradient.Item2), "gradienty");
+            Tuple<double[,], double[,]> gradient = GetGradient(test[0]);
+            //VisualizeGreyImage(Normalize(gradient.Item1), "gradientx");
+            //VisualizeGreyImage(Normalize(gradient.Item2), "gradienty");
+            double[,] harrisvalue = GetHarrisValue(gradient);
+            //VisualizeGreyImage(GetHarrisResponse(harrisvalue), "harrisvalue");
+            harrisvalue = GetANMSHarrisResponse(harrisvalue, 5);
+            VisualizeGreyImage(GetTopKValue(harrisvalue, 200), "nms");
+            //GetTopKValue(harrisvalue, 10);
         }
 
         static void GetImage(string img)
@@ -209,12 +214,12 @@ namespace HarrisDetectorCSharp
         //    List<int[,]> gradient_list = new List<int[,]>();
         //}
 
-        static Tuple<int[,], int[,]> GetGradient(int[,] img)
+        static Tuple<double[,], double[,]> GetGradient(int[,] img)
         {
             int iHeight = img.GetLength(0);
             int iWidth = img.GetLength(1);
-            var gradientX = new int[iHeight, iWidth];
-            var gradientY = new int[iHeight, iWidth];
+            var gradientX = new double[iHeight, iWidth];
+            var gradientY = new double[iHeight, iWidth];
             for (int i = 0; i < iHeight; i++)
                 for (int j = 0; j < iWidth; j++)
                 {
@@ -229,12 +234,12 @@ namespace HarrisDetectorCSharp
 
         }
 
-        static int[,] Normalize(int[,] img)
+        static int[,] Normalize(double[,] img)
         {
             double[,] temp_img = new double[img.GetLength(0), img.GetLength(1)];
             int[,] normalized_img = new int[img.GetLength(0), img.GetLength(1)];
-            double max = img.Cast<int>().Max();
-            double min = img.Cast<int>().Min();
+            double max = img.Cast<double>().Max();
+            double min = img.Cast<double>().Min();
             for (int i = 0; i < img.GetLength(0); i++)
                 for (int j = 0; j < img.GetLength(1); j++)
                 {
@@ -250,25 +255,101 @@ namespace HarrisDetectorCSharp
             return normalized_img;
         }
 
-        static Tuple<int[,], int[,], int[,]> GetAMatrix(Tuple<int[,], int[,]> gradient_matrix)
+        static double[,] GetHarrisValue(Tuple<double[,], double[,]> gradient_matrix)
         {
-            int[,] gradientX = gradient_matrix.Item1;
-            int[,] gradientY = gradient_matrix.Item2;
+            double[,] gradientX = gradient_matrix.Item1;
+            double[,] gradientY = gradient_matrix.Item2;
             int iHeight = gradientY.GetLength(0);
             int iWidth = gradientY.GetLength(1);
-            int[,] Ixx = new int[iHeight, iWidth];
-            int[,] Ixy = new int[iHeight, iWidth];
-            int[,] Iyy = new int[iHeight, iWidth];
+            double[,] Ixx = new double[iHeight, iWidth];
+            double[,] Ixy = new double[iHeight, iWidth];
+            double[,] Iyy = new double[iHeight, iWidth];
+            double[,] HarrisValue = new double[iHeight, iWidth];
 
 
-            for (int i = 0; i < iHeight; i++)
-                for (int j = 0; j < iWidth; j++)
+            for (int i = 1; i < iHeight - 1; i++)
+                for (int j = 1; j < iWidth - 1; j++)
                 {
-                    Ixx[i, j] = gradientX[i, j] * gradientX[i, j];
-                    Ixy[i, j] = gradientX[i, j] * gradientY[i, j];
-                    Iyy[i, j] = gradientY[i, j] * gradientY[i, j];
+                    Ixx[i, j] = gradientX[i - 1, j - 1] * gradientX[i - 1, j - 1] + gradientX[i - 1, j] * gradientX[i - 1, j] +
+                        gradientX[i - 1, j + 1] * gradientX[i - 1, j + 1] + gradientX[i, j - 1] * gradientX[i, j - 1] +
+                        gradientX[i, j] * gradientX[i, j] + gradientX[i, j + 1] * gradientX[i, j + 1] + gradientX[i + 1, j - 1] * gradientX[i + 1, j - 1] +
+                        gradientX[i + 1, j] * gradientX[i + 1, j] + gradientX[i + 1, j + 1] * gradientX[i + 1, j + 1];
+                    Ixy[i, j] = gradientX[i - 1, j - 1] * gradientY[i - 1, j - 1] + gradientX[i - 1, j] * gradientY[i - 1, j] +
+                        gradientX[i - 1, j + 1] * gradientY[i - 1, j + 1] + gradientX[i, j - 1] * gradientY[i, j - 1] +
+                        gradientX[i, j] * gradientY[i, j] + gradientX[i, j + 1] * gradientY[i, j + 1] + gradientX[i + 1, j - 1] * gradientY[i + 1, j - 1] +
+                        gradientX[i + 1, j] * gradientY[i + 1, j] + gradientX[i + 1, j + 1] * gradientY[i + 1, j + 1];
+                    Iyy[i, j] = gradientY[i - 1, j - 1] * gradientY[i - 1, j - 1] + gradientY[i - 1, j] * gradientY[i - 1, j] +
+                        gradientY[i - 1, j + 1] * gradientY[i - 1, j + 1] + gradientY[i, j - 1] * gradientY[i, j - 1] +
+                        gradientY[i, j] * gradientY[i, j] + gradientX[i, j + 1] * gradientY[i, j + 1] + gradientY[i + 1, j - 1] * gradientY[i + 1, j - 1] +
+                        gradientY[i + 1, j] * gradientY[i + 1, j] + gradientY[i + 1, j + 1] * gradientY[i + 1, j + 1];
+                    HarrisValue[i, j] = Ixx[i, j] * Iyy[i, j] - Ixy[i, j] * Ixy[i, j] - 0.05 * ( Ixx[i, j] + Iyy[i, j] );
                 }
-            return Tuple.Create(Ixx, Ixy, Iyy);
+            return HarrisValue;
         }
+        
+        static int[,] GetHarrisResponse(double[,] img)
+        {
+            double mean = 0;
+            int[,] response = new int[img.GetLength(0), img.GetLength(1)];
+
+            for (int i = 0; i < img.GetLength(0); i++)
+                for (int j = 0; j < img.GetLength(1); j++)
+                {
+                    mean += img[i, j];
+                }
+            mean /= (img.GetLength(0) * img.GetLength(1));
+
+            for (int i = 0; i < img.GetLength(0); i++)
+                for (int j = 0; j < img.GetLength(1); j++)
+                {
+                    response[i, j] = (img[i, j] > 1.5 * mean) ? 200 : 100;
+                }
+            return response;
+        }
+
+        static double[,] GetANMSHarrisResponse(double[,] img, int radius)
+        {
+            double[,] anms_harris_value = new double[img.GetLength(0), img.GetLength(1)];
+            //double[,] anms_harris_value = new double[img.GetLength(0), img.GetLength(1)];
+            double min = img.Cast<double>().Min();
+            for (int i = radius; i < img.GetLength(0) - radius; i++)
+                for (int j = radius; j < img.GetLength(1) - radius; j++)
+                {
+                    anms_harris_value[i, j] = img[i, j] - img[i + 1, j - 1];
+                    for (int k = i - radius; k < i + radius; k++)
+                        for (int m = j - radius; m < j + radius; m++)
+                            if (k != 0 || m != 0)
+                                anms_harris_value[i, j] = (anms_harris_value[i, j] > img[i, j] - img[k, m]) ? img[i, j] - img[k, m] : anms_harris_value[i, j];
+                    anms_harris_value[i, j] = (anms_harris_value[i, j] / Math.Abs(img[i, j]) > 0) ? img[i, j] : 0;
+                    if (anms_harris_value[i, j] != 0)
+                        Console.WriteLine("here");
+                }
+            return anms_harris_value;
+
+        }
+
+        static int[,] GetTopKValue(double[,] img, int k)
+        {
+            double[] list = img.Cast<double>().ToArray<double>();
+            double[] originallist = img.Cast<double>().ToArray<double>();
+            double[] topklist = new double[k];
+            int[,] result = new int[img.GetLength(0), img.GetLength(1)];
+            Array.Sort(list);
+            Array.Reverse(list);
+
+            Array.Copy(list, topklist, k);
+
+            for (int i = 0; i < img.GetLength(0); i++)
+                for (int j = 0; j < img.GetLength(1); j++)
+                {
+                    if (topklist.Contains(originallist[i * img.GetLength(1) + j]))
+                    {
+                        result[i, j] = 200;
+                    }
+                }
+
+            return result;
+        }
+        
     }
 }
