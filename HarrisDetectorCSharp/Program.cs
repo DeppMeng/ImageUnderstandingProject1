@@ -15,28 +15,21 @@ namespace HarrisDetectorCSharp
     {
         static Bitmap image;
         static int[] GradientKernel = { -2, -1, 0, 1, 2 };
-        private class LocationTuple
-        {
-            private int x, y;
-        }
+        static int iHeight = 0;
+        static int iWidth = 0;
 
 
         static void Main(string[] args)
         {
             string str = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/1.jpg";
             GetImage(str);
+            iHeight = image.Height;
+            iWidth = image.Width;
             //RGB2Grey(image);
-            List<int[,]> test = GetBGRList(image);
-            //VisualizeBGRList(test, "test1");
-            int[,] gradientX = new int[1000, 1600];
-            int[,] gradientY = new int[1000, 1600];
-            Tuple<double[,], double[,]> gradient = GetGradient(test[0]);
-            //VisualizeGreyImage(Normalize(gradient.Item1), "gradientx");
-            //VisualizeGreyImage(Normalize(gradient.Item2), "gradienty");
-            double[,] harrisvalue = GetHarrisValue(gradient);
-            //VisualizeGreyImage(GetHarrisResponse(harrisvalue), "harrisvalue");
-            harrisvalue = GetANMSHarrisResponse(harrisvalue, 5);
-            VisualizeGreyImage(GetTopKValue(harrisvalue, 200), "nms");
+            int[,] responsemap = ANMSHarrisDetector(image, 500);
+            List<int[,]> finalmap = CombineHarrisValueImage(GetBGRList(image), responsemap);
+            VisualizeBGRList(finalmap, "nmsrbg");
+            //VisualizeGreyImage(GetTopKValue(finalmap, 500), "nms");
             //GetTopKValue(harrisvalue, 10);
         }
 
@@ -56,8 +49,6 @@ namespace HarrisDetectorCSharp
 
         static void RGB2Grey(Bitmap bitmap)
         {
-            int iWidth = bitmap.Width;
-            int iHeight = bitmap.Height;
             Rectangle rect = new Rectangle(0, 0, iWidth, iHeight);
             BitmapData bmpData = bitmap.LockBits(rect,
                 ImageLockMode.ReadWrite, bitmap.PixelFormat);
@@ -102,8 +93,6 @@ namespace HarrisDetectorCSharp
 
         static List<int[,]> GetBGRList(Bitmap bitmap)
         {
-            int iWidth = bitmap.Width;
-            int iHeight = bitmap.Height;
             Rectangle rect = new Rectangle(0, 0, iWidth, iHeight);
             BitmapData bmpData = bitmap.LockBits(rect,
                 ImageLockMode.ReadWrite, bitmap.PixelFormat);
@@ -143,8 +132,6 @@ namespace HarrisDetectorCSharp
             int[,] B = list[0];
             int[,] G = list[1];
             int[,] R = list[2];
-            int iHeight = B.GetLength(0);
-            int iWidth = B.GetLength(1);
             byte[] PixelValues = new byte[iWidth * iHeight * 3];
 
             int iPoint = 0;
@@ -173,8 +160,6 @@ namespace HarrisDetectorCSharp
             int[,] B = list;
             int[,] G = list;
             int[,] R = list;
-            int iHeight = B.GetLength(0);
-            int iWidth = B.GetLength(1);
             byte[] PixelValues = new byte[iWidth * iHeight * 3];
 
             int iPoint = 0;
@@ -216,8 +201,6 @@ namespace HarrisDetectorCSharp
 
         static Tuple<double[,], double[,]> GetGradient(int[,] img)
         {
-            int iHeight = img.GetLength(0);
-            int iWidth = img.GetLength(1);
             var gradientX = new double[iHeight, iWidth];
             var gradientY = new double[iHeight, iWidth];
             for (int i = 0; i < iHeight; i++)
@@ -236,8 +219,8 @@ namespace HarrisDetectorCSharp
 
         static int[,] Normalize(double[,] img)
         {
-            double[,] temp_img = new double[img.GetLength(0), img.GetLength(1)];
-            int[,] normalized_img = new int[img.GetLength(0), img.GetLength(1)];
+            double[,] temp_img = new double[iHeight, iWidth];
+            int[,] normalized_img = new int[iHeight, iWidth];
             double max = img.Cast<double>().Max();
             double min = img.Cast<double>().Min();
             for (int i = 0; i < img.GetLength(0); i++)
@@ -259,8 +242,6 @@ namespace HarrisDetectorCSharp
         {
             double[,] gradientX = gradient_matrix.Item1;
             double[,] gradientY = gradient_matrix.Item2;
-            int iHeight = gradientY.GetLength(0);
-            int iWidth = gradientY.GetLength(1);
             double[,] Ixx = new double[iHeight, iWidth];
             double[,] Ixy = new double[iHeight, iWidth];
             double[,] Iyy = new double[iHeight, iWidth];
@@ -290,7 +271,7 @@ namespace HarrisDetectorCSharp
         static int[,] GetHarrisResponse(double[,] img)
         {
             double mean = 0;
-            int[,] response = new int[img.GetLength(0), img.GetLength(1)];
+            int[,] response = new int[iHeight, iWidth];
 
             for (int i = 0; i < img.GetLength(0); i++)
                 for (int j = 0; j < img.GetLength(1); j++)
@@ -307,23 +288,42 @@ namespace HarrisDetectorCSharp
             return response;
         }
 
-        static double[,] GetANMSHarrisResponse(double[,] img, int radius)
+        static double[,] GetANMSHarrisResponse(double[,] img)
         {
-            double[,] anms_harris_value = new double[img.GetLength(0), img.GetLength(1)];
-            //double[,] anms_harris_value = new double[img.GetLength(0), img.GetLength(1)];
-            double min = img.Cast<double>().Min();
-            for (int i = radius; i < img.GetLength(0) - radius; i++)
-                for (int j = radius; j < img.GetLength(1) - radius; j++)
+            double[,] anms_harris_value = new double[iHeight, iWidth];
+            double temp_loc_max;
+            int temp_radius;
+            //double[,] anms_harris_value = new double[iHeight, iWidth];
+            //double min = img.Cast<double>().Min();
+            //for (int i = radius; i < img.GetLength(0) - radius; i++)
+            //    for (int j = radius; j < img.GetLength(1) - radius; j++)
+            //    {
+            //        anms_harris_value[i, j] = img[i, j] - img[i + 1, j - 1];
+            //        for (int k = i - radius; k < i + radius; k++)
+            //            for (int m = j - radius; m < j + radius; m++)
+            //                if (k != 0 || m != 0)
+            //                    anms_harris_value[i, j] = (anms_harris_value[i, j] > img[i, j] - img[k, m]) ? img[i, j] - img[k, m] : anms_harris_value[i, j];
+            //        anms_harris_value[i, j] = (anms_harris_value[i, j] / Math.Abs(img[i, j]) > 0) ? img[i, j] : 0;
+            //        if (anms_harris_value[i, j] != 0)
+            //            Console.WriteLine("here");
+
+            //    }
+            for (int i = 0; i < iHeight; i++)
+            {
+                if (i % 50 == 0)
+                    i = i;
+                for (int j = 0; j < iWidth; j++)
                 {
-                    anms_harris_value[i, j] = img[i, j] - img[i + 1, j - 1];
-                    for (int k = i - radius; k < i + radius; k++)
-                        for (int m = j - radius; m < j + radius; m++)
-                            if (k != 0 || m != 0)
-                                anms_harris_value[i, j] = (anms_harris_value[i, j] > img[i, j] - img[k, m]) ? img[i, j] - img[k, m] : anms_harris_value[i, j];
-                    anms_harris_value[i, j] = (anms_harris_value[i, j] / Math.Abs(img[i, j]) > 0) ? img[i, j] : 0;
-                    if (anms_harris_value[i, j] != 0)
-                        Console.WriteLine("here");
+                    temp_radius = 1;
+                    temp_loc_max = GetMaxValueOfLoop(img, i, j, temp_radius++);
+                    while (img[i, j] / Math.Abs(temp_loc_max) > 1.1 && temp_radius < iHeight / 2)
+                    {
+                        temp_loc_max = (GetMaxValueOfLoop(img, i, j, temp_radius) > temp_loc_max) ? GetMaxValueOfLoop(img, i, j, temp_radius) : temp_loc_max;
+                        temp_radius++;
+                    }
+                    anms_harris_value[i, j] = temp_radius;
                 }
+            }
             return anms_harris_value;
 
         }
@@ -333,23 +333,100 @@ namespace HarrisDetectorCSharp
             double[] list = img.Cast<double>().ToArray<double>();
             double[] originallist = img.Cast<double>().ToArray<double>();
             double[] topklist = new double[k];
-            int[,] result = new int[img.GetLength(0), img.GetLength(1)];
+            int[,] result = new int[iHeight, iWidth];
+            //List<int[,]> test = GetBGRList(image);
+            //int[,] result = test[0];
             Array.Sort(list);
             Array.Reverse(list);
 
             Array.Copy(list, topklist, k);
 
-            for (int i = 0; i < img.GetLength(0); i++)
-                for (int j = 0; j < img.GetLength(1); j++)
+            for (int i = 0; i < iHeight; i++)
+                for (int j = 0; j < iWidth; j++)
                 {
                     if (topklist.Contains(originallist[i * img.GetLength(1) + j]))
                     {
-                        result[i, j] = 200;
+                        result[i, j] = 255;
                     }
                 }
 
             return result;
         }
         
+        static double GetMaxValueOfLoop(double[,] img, int x, int y, int r)
+        {
+            List<double> list = new List<double>();
+            Tuple<int, int> temp_loc = new Tuple<int, int>(0, 0);
+            for (int j = y - r; j < y + r + 1; j++)
+            {
+                temp_loc = GetSafeIndex(x - r, j);
+                list.Add(img[temp_loc.Item1, temp_loc.Item2]);
+                temp_loc = GetSafeIndex(x + r, j);
+                list.Add(img[temp_loc.Item1, temp_loc.Item2]);
+            }
+            for (int i = x - r + 1; i < x + r; i++)
+            {
+                temp_loc = GetSafeIndex(i, y - r);
+                list.Add(img[temp_loc.Item1, temp_loc.Item2]);
+                temp_loc = GetSafeIndex(i, y + r);
+                list.Add(img[temp_loc.Item1, temp_loc.Item2]);
+            }
+            return list.Max();
+        }
+
+        static Tuple<int, int> GetSafeIndex(int x, int y)
+        {
+            int xsafe, ysafe;
+            if (x >= 0)
+                if (x < iHeight)
+                    xsafe = x;
+                else
+                    xsafe = iHeight - 1;
+            else xsafe = 0;
+            if (y >= 0)
+                if (y < iWidth)
+                    ysafe = y;
+                else
+                    ysafe = iWidth - 1;
+            else ysafe = 0;
+            return Tuple.Create(xsafe, ysafe);
+        }
+
+        static int[,] ANMSHarrisDetector(Bitmap image, int k)
+        {
+            List<int[,]> test = GetBGRList(image);
+            double[,] anmsharrisvalue = new double[iHeight, iWidth];
+            int[,] result = new int[iHeight, iWidth];
+
+            Tuple<double[,], double[,]> gradientB = GetGradient(test[0]);
+            double[,] harrisvalueB = GetHarrisValue(gradientB);
+            harrisvalueB = GetANMSHarrisResponse(harrisvalueB);
+            Tuple<double[,], double[,]> gradientG = GetGradient(test[1]);
+            double[,] harrisvalueG = GetHarrisValue(gradientG);
+            harrisvalueG = GetANMSHarrisResponse(harrisvalueG);
+            Tuple<double[,], double[,]> gradientR = GetGradient(test[2]);
+            double[,] harrisvalueR = GetHarrisValue(gradientR);
+            harrisvalueR = GetANMSHarrisResponse(harrisvalueR);
+
+            for (int i = 0; i < iHeight; i++)
+                for (int j = 0; j < iWidth; j++)
+                {
+                    anmsharrisvalue[i, j] = harrisvalueB[i, j] + harrisvalueG[i, j] + harrisvalueR[i, j];
+                }
+            result = GetTopKValue(anmsharrisvalue, k);
+            return result;
+        }
+
+        static List<int[,]> CombineHarrisValueImage(List<int[,]> img, int[,] harrisvalue)
+        {
+            for (int i = 0; i < iHeight; i++)
+                for (int j = 0; j < iWidth; j++)
+                {
+                    img[0][i, j] = (img[0][i, j] > harrisvalue[i, j]) ? img[0][i, j] : harrisvalue[i, j];
+                    img[1][i, j] = (img[1][i, j] > harrisvalue[i, j]) ? img[1][i, j] : harrisvalue[i, j];
+                    img[2][i, j] = (img[2][i, j] > harrisvalue[i, j]) ? img[2][i, j] : harrisvalue[i, j];
+                }
+            return img;
+        }
     }
 }
