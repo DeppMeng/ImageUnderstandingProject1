@@ -341,18 +341,74 @@ namespace HarrisDetectorCSharp
 
             Array.Copy(list, topklist, k);
 
+            int num_last_radius = 0;
+            int temp_num_last_radius = 0;
+            for (int i = 0; i < k; i++)
+            {
+                if (topklist[k - i - 1] == topklist[k - 1])
+                    num_last_radius++;
+                else
+                    break;
+            }
+
             for (int i = 0; i < iHeight; i++)
                 for (int j = 0; j < iWidth; j++)
                 {
                     if (topklist.Contains(originallist[i * img.GetLength(1) + j]))
                     {
+                        if (originallist[i * img.GetLength(1) + j] == topklist[k - 1])
+                        {
+                            temp_num_last_radius++;
+                            if (temp_num_last_radius > num_last_radius)
+                                continue;
+                        }
                         result[i, j] = 255;
                     }
                 }
 
             return result;
         }
-        
+
+        static List<Tuple<int, int>> GetTopKValueList(double[,] img, int k)
+        {
+            double[] list = img.Cast<double>().ToArray<double>();
+            double[] originallist = img.Cast<double>().ToArray<double>();
+            double[] topklist = new double[k];
+            List<Tuple<int, int>> result = new List<Tuple<int, int>>();
+            //List<int[,]> test = GetBGRList(image);
+            //int[,] result = test[0];
+            Array.Sort(list);
+            Array.Reverse(list);
+
+            Array.Copy(list, topklist, k);
+            int num_last_radius = 0;
+            int temp_num_last_radius = 0;
+            for (int i = 0; i < k; i++)
+            {
+                if (topklist[k-i-1] == topklist[k-1])
+                    num_last_radius++;
+                else
+                    break;
+            }
+
+            for (int i = 0; i < iHeight; i++)
+                for (int j = 0; j < iWidth; j++)
+                {
+                    if (topklist.Contains(originallist[i * img.GetLength(1) + j]))
+                    {
+                        if (originallist[i * img.GetLength(1) + j] == topklist[k - 1])
+                        {
+                            temp_num_last_radius++;
+                            if (temp_num_last_radius > num_last_radius)
+                                continue;
+                        }
+                        result.Add(Tuple.Create(i, j));
+                    }
+                }
+
+            return result;
+        }
+
         static double GetMaxValueOfLoop(double[,] img, int x, int y, int r)
         {
             List<double> list = new List<double>();
@@ -414,6 +470,7 @@ namespace HarrisDetectorCSharp
                     anmsharrisvalue[i, j] = harrisvalueB[i, j] + harrisvalueG[i, j] + harrisvalueR[i, j];
                 }
             result = GetTopKValue(anmsharrisvalue, k);
+            List<Tuple<int, int>> temp_result = GetTopKValueList(anmsharrisvalue, k);
             return result;
         }
 
@@ -427,6 +484,53 @@ namespace HarrisDetectorCSharp
                     img[2][i, j] = (img[2][i, j] > harrisvalue[i, j]) ? img[2][i, j] : harrisvalue[i, j];
                 }
             return img;
+        }
+
+        //static List<Tuple<int[], int, int>> GetSIFTFeature(int[,] img, int[,] featuremap)
+        //{
+        //    int[] temp_sift_feature = new int[128];
+        //    List<Tuple<int[], int, int>> feature_list = new List<Tuple<int[], int, int>>();
+
+        //}
+
+        static int[] GetAngleHistogram(Tuple<double[,], double[,]> gradient, int x, int y)
+        {
+            int[] histogram = new int[8];
+            Tuple<int, int> temp_loc = new Tuple<int, int>(0, 0);
+            double temp_angle;
+            double temp_gradient_x, temp_gradient_y;
+            for (int i = x; i < x + 4; i++)
+                for (int j = y; j < y + 4; j++)
+                {
+                    temp_loc = GetSafeIndex(i, j);
+
+                    temp_gradient_x = gradient.Item1[temp_loc.Item1, temp_loc.Item2];
+                    temp_gradient_y = gradient.Item2[temp_loc.Item1, temp_loc.Item2];
+                    temp_angle = Math.Atan(temp_gradient_y / temp_gradient_x);
+                    if (temp_gradient_y < 0)
+                        temp_angle += Math.PI;
+                    if (0 <= temp_angle && temp_angle < Math.PI / 4)
+                        histogram[0]++;
+                    else if (Math.PI / 4 <= temp_angle && temp_angle < Math.PI / 2)
+                        histogram[1]++;
+                    else if (Math.PI / 2 <= temp_angle && temp_angle < Math.PI * 3 / 4)
+                        histogram[2]++;
+                    else if (Math.PI * 3 / 4 <= temp_angle && temp_angle < Math.PI)
+                        histogram[3]++;
+                    else if (Math.PI <= temp_angle && temp_angle < Math.PI * 5 / 4)
+                        histogram[4]++;
+                    else if (Math.PI * 5 / 4 <= temp_angle && temp_angle < Math.PI * 3 / 2)
+                        histogram[5]++;
+                    else if (Math.PI * 3 / 2 <= temp_angle && temp_angle < Math.PI * 7 / 4)
+                        histogram[6]++;
+                    else if (Math.PI * 7 / 4 <= temp_angle && temp_angle <= Math.PI * 2)
+                        histogram[7]++;
+                    else
+                    {
+                        Console.WriteLine("Angle out of range:" + temp_angle);
+                    }
+                }
+            return histogram;
         }
     }
 }
