@@ -17,7 +17,10 @@ namespace HarrisDetectorCSharp
         static int[] GradientKernel = { -2, -1, 0, 1, 2 };
         static int iHeight = 0;
         static int iWidth = 0;
-
+        static Tuple<double[,], double[,]> gradientB;
+        static Tuple<double[,], double[,]> gradientG;
+        static Tuple<double[,], double[,]> gradientR;
+        static List<Tuple<int, int>> topklist;
 
         static void Main(string[] args)
         {
@@ -29,6 +32,7 @@ namespace HarrisDetectorCSharp
             int[,] responsemap = ANMSHarrisDetector(image, 500);
             List<int[,]> finalmap = CombineHarrisValueImage(GetBGRList(image), responsemap);
             VisualizeBGRList(finalmap, "nmsrbg");
+            List<Tuple<int[], int, int>> sift_feature_image_1 = GetSIFTFeature(topklist);
             //VisualizeGreyImage(GetTopKValue(finalmap, 500), "nms");
             //GetTopKValue(harrisvalue, 10);
         }
@@ -310,8 +314,6 @@ namespace HarrisDetectorCSharp
             //    }
             for (int i = 0; i < iHeight; i++)
             {
-                if (i % 50 == 0)
-                    i = i;
                 for (int j = 0; j < iWidth; j++)
                 {
                     temp_radius = 1;
@@ -454,13 +456,13 @@ namespace HarrisDetectorCSharp
             double[,] anmsharrisvalue = new double[iHeight, iWidth];
             int[,] result = new int[iHeight, iWidth];
 
-            Tuple<double[,], double[,]> gradientB = GetGradient(test[0]);
+            gradientB = GetGradient(test[0]);
             double[,] harrisvalueB = GetHarrisValue(gradientB);
             harrisvalueB = GetANMSHarrisResponse(harrisvalueB);
-            Tuple<double[,], double[,]> gradientG = GetGradient(test[1]);
+            gradientG = GetGradient(test[1]);
             double[,] harrisvalueG = GetHarrisValue(gradientG);
             harrisvalueG = GetANMSHarrisResponse(harrisvalueG);
-            Tuple<double[,], double[,]> gradientR = GetGradient(test[2]);
+            gradientR = GetGradient(test[2]);
             double[,] harrisvalueR = GetHarrisValue(gradientR);
             harrisvalueR = GetANMSHarrisResponse(harrisvalueR);
 
@@ -470,7 +472,7 @@ namespace HarrisDetectorCSharp
                     anmsharrisvalue[i, j] = harrisvalueB[i, j] + harrisvalueG[i, j] + harrisvalueR[i, j];
                 }
             result = GetTopKValue(anmsharrisvalue, k);
-            List<Tuple<int, int>> temp_result = GetTopKValueList(anmsharrisvalue, k);
+            topklist = GetTopKValueList(anmsharrisvalue, k);
             return result;
         }
 
@@ -486,12 +488,25 @@ namespace HarrisDetectorCSharp
             return img;
         }
 
-        //static List<Tuple<int[], int, int>> GetSIFTFeature(int[,] img, int[,] featuremap)
-        //{
-        //    int[] temp_sift_feature = new int[128];
-        //    List<Tuple<int[], int, int>> feature_list = new List<Tuple<int[], int, int>>();
-
-        //}
+        static List<Tuple<int[], int, int>> GetSIFTFeature(List<Tuple<int, int>> harrisvaulelist)
+        {
+            int subfeature_index;
+            int[] temp_sift_feature = new int[384];
+            List<Tuple<int[], int, int>> feature_list = new List<Tuple<int[], int, int>>();
+            foreach (Tuple<int, int> temp_loc in harrisvaulelist)
+            {
+                subfeature_index = 0;
+                for (int i = 0; i < 4; i++)
+                    for (int j = 0; j < 4; j++)
+                    {
+                        Array.Copy(GetAngleHistogram(gradientB, temp_loc.Item1 + 4 * i - 8, temp_loc.Item2 + 4 * j - 8), 0, temp_sift_feature, 8 * subfeature_index++, 8);
+                        Array.Copy(GetAngleHistogram(gradientG, temp_loc.Item1 + 4 * i - 8, temp_loc.Item2 + 4 * j - 8), 0, temp_sift_feature, 8 * subfeature_index++, 8);
+                        Array.Copy(GetAngleHistogram(gradientR, temp_loc.Item1 + 4 * i - 8, temp_loc.Item2 + 4 * j - 8), 0, temp_sift_feature, 8 * subfeature_index++, 8);
+                    }
+                feature_list.Add(Tuple.Create(temp_sift_feature, temp_loc.Item1, temp_loc.Item2));
+            }
+            return feature_list;
+        }
 
         static int[] GetAngleHistogram(Tuple<double[,], double[,]> gradient, int x, int y)
         {
@@ -506,7 +521,7 @@ namespace HarrisDetectorCSharp
 
                     temp_gradient_x = gradient.Item1[temp_loc.Item1, temp_loc.Item2];
                     temp_gradient_y = gradient.Item2[temp_loc.Item1, temp_loc.Item2];
-                    temp_angle = Math.Atan(temp_gradient_y / temp_gradient_x);
+                    temp_angle = Math.Atan(temp_gradient_y / (temp_gradient_x + 0.01)) - Math.PI / 2;
                     if (temp_gradient_y < 0)
                         temp_angle += Math.PI;
                     if (0 <= temp_angle && temp_angle < Math.PI / 4)
@@ -517,13 +532,13 @@ namespace HarrisDetectorCSharp
                         histogram[2]++;
                     else if (Math.PI * 3 / 4 <= temp_angle && temp_angle < Math.PI)
                         histogram[3]++;
-                    else if (Math.PI <= temp_angle && temp_angle < Math.PI * 5 / 4)
+                    else if (-Math.PI <= temp_angle && temp_angle < -Math.PI * 3 / 4)
                         histogram[4]++;
-                    else if (Math.PI * 5 / 4 <= temp_angle && temp_angle < Math.PI * 3 / 2)
+                    else if (-Math.PI * 3 / 4 <= temp_angle && temp_angle < -Math.PI * 1 / 2)
                         histogram[5]++;
-                    else if (Math.PI * 3 / 2 <= temp_angle && temp_angle < Math.PI * 7 / 4)
+                    else if (-Math.PI * 1 / 2 <= temp_angle && temp_angle < -Math.PI * 1 / 4)
                         histogram[6]++;
-                    else if (Math.PI * 7 / 4 <= temp_angle && temp_angle <= Math.PI * 2)
+                    else if (-Math.PI * 1 / 4 <= temp_angle && temp_angle <= 0)
                         histogram[7]++;
                     else
                     {
