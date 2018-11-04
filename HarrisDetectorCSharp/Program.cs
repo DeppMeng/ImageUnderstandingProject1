@@ -13,7 +13,6 @@ namespace HarrisDetectorCSharp
 {
     class Program
     {
-        static Bitmap image;
         static int[] GradientKernel = { -2, -1, 0, 1, 2 };
         static int iHeight = 0;
         static int iWidth = 0;
@@ -21,34 +20,40 @@ namespace HarrisDetectorCSharp
         static Tuple<double[,], double[,]> gradientG;
         static Tuple<double[,], double[,]> gradientR;
         static List<Tuple<int, int>> topklist;
+        static bool parallel = true;
 
         static void Main(string[] args)
         {
-            string str = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/1.jpg";
-            GetImage(str);
-            iHeight = image.Height;
-            iWidth = image.Width;
+            string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/harristest_small1.jpg";
+            //string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/1.jpg";
+            //string str1 = "C:/Users/mdp/OneDrive/Pictures/img1.jpg";
+
+            Bitmap image1 = GetImage(str1);
+            iHeight = image1.Height;
+            iWidth = image1.Width;
             //RGB2Grey(image);
-            int[,] responsemap = ANMSHarrisDetector(image, 500);
-            List<int[,]> finalmap = CombineHarrisValueImage(GetBGRList(image), responsemap);
-            VisualizeBGRList(finalmap, "nmsrbg");
+            int[,] responsemap = ANMSHarrisDetector(image1, 250);
+            List<int[,]> finalmap = CombineHarrisValueImage(GetBGRList(image1), responsemap);
+            VisualizeBGRList(finalmap, "small_test_anms_1");
             List<Tuple<int[], int, int>> sift_feature_image_1 = GetSIFTFeature(topklist);
-            //VisualizeGreyImage(GetTopKValue(finalmap, 500), "nms");
-            //GetTopKValue(harrisvalue, 10);
+
+            string str2 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/harristest_small2.jpg";
+
+            Bitmap image2 = GetImage(str2);
+            responsemap = ANMSHarrisDetector(image2, 250);
+            finalmap = CombineHarrisValueImage(GetBGRList(image2), responsemap);
+            VisualizeBGRList(finalmap, "small_test_anms_2");
+            List<Tuple<int[], int, int>> sift_feature_image_2 = GetSIFTFeature(topklist);
+            List<Tuple<int, int, int>> match_list = GetTop1Match(sift_feature_image_1, sift_feature_image_2);
+            VisualizeMatch(GetBGRList(image1), GetBGRList(image2), match_list, 50, sift_feature_image_1, sift_feature_image_2);
         }
 
-        static void GetImage(string img)
+        static Bitmap GetImage(string img)
         {
-            try
-            {
-                image = new Bitmap(img);
-                return;
-            }
-            catch (FormatException)
-            {
-                Console.WriteLine("Image '{0} not found.", img);
-                return;
-            }
+
+            Bitmap image;
+            image = new Bitmap(img);
+            return image;
         }
 
         static void RGB2Grey(Bitmap bitmap)
@@ -156,7 +161,7 @@ namespace HarrisDetectorCSharp
                 ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
             IntPtr newiPtr = newbmpData.Scan0;
             System.Runtime.InteropServices.Marshal.Copy(PixelValues, 0, newiPtr, PixelValues.Length);
-            bitmap.Save("C:/Depp Data/Others/Wallpaper/Lord of the Ring/" + name + ".jpg", ImageFormat.Jpeg);
+            bitmap.Save("C:/Depp Data/Others/Wallpaper/Lord of the Ring/" + name + ".bmp", ImageFormat.Bmp);
         }
 
         static void VisualizeGreyImage(int[,] list, string name)
@@ -292,83 +297,93 @@ namespace HarrisDetectorCSharp
             return response;
         }
 
-        static double[,] GetANMSHarrisResponse(double[,] img)
+        static int[,] GetANMSHarrisResponse(double[,] img)
         {
-            double[,] anms_harris_value = new double[iHeight, iWidth];
-            double temp_loc_max;
-            int temp_radius;
-            //double[,] anms_harris_value = new double[iHeight, iWidth];
-            //double min = img.Cast<double>().Min();
-            //for (int i = radius; i < img.GetLength(0) - radius; i++)
-            //    for (int j = radius; j < img.GetLength(1) - radius; j++)
-            //    {
-            //        anms_harris_value[i, j] = img[i, j] - img[i + 1, j - 1];
-            //        for (int k = i - radius; k < i + radius; k++)
-            //            for (int m = j - radius; m < j + radius; m++)
-            //                if (k != 0 || m != 0)
-            //                    anms_harris_value[i, j] = (anms_harris_value[i, j] > img[i, j] - img[k, m]) ? img[i, j] - img[k, m] : anms_harris_value[i, j];
-            //        anms_harris_value[i, j] = (anms_harris_value[i, j] / Math.Abs(img[i, j]) > 0) ? img[i, j] : 0;
-            //        if (anms_harris_value[i, j] != 0)
-            //            Console.WriteLine("here");
+            int[,] anms_harris_value = new int[iHeight, iWidth];
 
-            //    }
-            for (int i = 0; i < iHeight; i++)
+            if (parallel == true)
             {
-                for (int j = 0; j < iWidth; j++)
+                var degreeOfParallelism = 2;
+                var tasks = new Task[degreeOfParallelism];
+                for (int taskNumber = 0; taskNumber < degreeOfParallelism; taskNumber++)
                 {
-                    temp_radius = 1;
-                    temp_loc_max = GetMaxValueOfLoop(img, i, j, temp_radius++);
-                    while (img[i, j] / Math.Abs(temp_loc_max) > 1.1 && temp_radius < iHeight / 2)
+                    // capturing taskNumber in lambda wouldn't work correctly
+                    int taskNumberCopy = taskNumber;
+                    tasks[taskNumber] = Task.Factory.StartNew(
+                        () =>
+                        {
+                            double temp_loc_max;
+                            int temp_radius;
+                            for (int i = (0 + taskNumberCopy) * iHeight / 2; i < (1 + taskNumberCopy) * iHeight / 2; i++)
+                            {
+                                for (int j = 0; j < iWidth; j++)
+                                {
+                                    temp_radius = 1;
+                                    temp_loc_max = GetMaxValueOfLoop(img, i, j, temp_radius++);
+                                    while (img[i, j] / Math.Abs(temp_loc_max) > 1.1 && temp_radius < iHeight / 2)
+                                    {
+                                        temp_loc_max = (GetMaxValueOfLoop(img, i, j, temp_radius) > temp_loc_max) ? GetMaxValueOfLoop(img, i, j, temp_radius) : temp_loc_max;
+                                        temp_radius++;
+                                    }
+                                    anms_harris_value[i, j] = temp_radius;
+                                }
+                            }
+                        });
+                }
+                Task.WaitAll(tasks);
+            }
+
+            if (parallel == false)
+            {
+                double temp_loc_max;
+                int temp_radius;
+
+                for (int i = 0; i < iHeight; i++)
+                {
+                    for (int j = 0; j < iWidth; j++)
                     {
-                        temp_loc_max = (GetMaxValueOfLoop(img, i, j, temp_radius) > temp_loc_max) ? GetMaxValueOfLoop(img, i, j, temp_radius) : temp_loc_max;
-                        temp_radius++;
+                        temp_radius = 1;
+                        temp_loc_max = GetMaxValueOfLoop(img, i, j, temp_radius++);
+                        while (img[i, j] / Math.Abs(temp_loc_max) > 1.1 && temp_radius < iHeight / 2)
+                        {
+                            temp_loc_max = (GetMaxValueOfLoop(img, i, j, temp_radius) > temp_loc_max) ? GetMaxValueOfLoop(img, i, j, temp_radius) : temp_loc_max;
+                            temp_radius++;
+                        }
+                        anms_harris_value[i, j] = temp_radius;
                     }
-                    anms_harris_value[i, j] = temp_radius;
                 }
             }
             return anms_harris_value;
 
         }
 
-        static int[,] GetTopKValue(double[,] img, int k)
+        static Tuple<int[,], List<Tuple<int, int>>> GetTopKValue(int[,] img, int k)
         {
-            double[] list = img.Cast<double>().ToArray<double>();
-            double[] originallist = img.Cast<double>().ToArray<double>();
-            double[] topklist = new double[k];
             int[,] result = new int[iHeight, iWidth];
+            List<Tuple<int, int>> resultlist = new List<Tuple<int, int>>();
+            Tuple<int, int, int>[] tuplearray = new Tuple<int, int, int>[iHeight * iWidth];
             //List<int[,]> test = GetBGRList(image);
             //int[,] result = test[0];
-            Array.Sort(list);
-            Array.Reverse(list);
-
-            Array.Copy(list, topklist, k);
-
-            int num_last_radius = 0;
-            int temp_num_last_radius = 0;
-            for (int i = 0; i < k; i++)
-            {
-                if (topklist[k - i - 1] == topklist[k - 1])
-                    num_last_radius++;
-                else
-                    break;
-            }
 
             for (int i = 0; i < iHeight; i++)
                 for (int j = 0; j < iWidth; j++)
                 {
-                    if (topklist.Contains(originallist[i * img.GetLength(1) + j]))
-                    {
-                        if (originallist[i * img.GetLength(1) + j] == topklist[k - 1])
-                        {
-                            temp_num_last_radius++;
-                            if (temp_num_last_radius > num_last_radius)
-                                continue;
-                        }
-                        result[i, j] = 255;
-                    }
+                    tuplearray[i * iWidth + j] = Tuple.Create(i, j, img[i, j]);
                 }
 
-            return result;
+            List<Tuple<int, int, int>> tuplelist = new List<Tuple<int, int, int>>();
+            tuplelist.AddRange(tuplearray);
+
+            tuplelist.Sort((x, y) => y.Item3.CompareTo(x.Item3));
+            //tuplelist.Reverse();
+
+            for (int i = 0; i < k; i++)
+            {
+                result[tuplelist[i].Item1, tuplelist[i].Item2] = 255;
+                resultlist.Add(Tuple.Create(tuplelist[i].Item1, tuplelist[i].Item2));
+            }
+            
+            return Tuple.Create(result, resultlist);
         }
 
         static List<Tuple<int, int>> GetTopKValueList(double[,] img, int k)
@@ -453,26 +468,28 @@ namespace HarrisDetectorCSharp
         static int[,] ANMSHarrisDetector(Bitmap image, int k)
         {
             List<int[,]> test = GetBGRList(image);
-            double[,] anmsharrisvalue = new double[iHeight, iWidth];
+            int[,] anmsharrisvalue = new int[iHeight, iWidth];
             int[,] result = new int[iHeight, iWidth];
 
             gradientB = GetGradient(test[0]);
             double[,] harrisvalueB = GetHarrisValue(gradientB);
-            harrisvalueB = GetANMSHarrisResponse(harrisvalueB);
+            int [,] anmsB = GetANMSHarrisResponse(harrisvalueB);
             gradientG = GetGradient(test[1]);
             double[,] harrisvalueG = GetHarrisValue(gradientG);
-            harrisvalueG = GetANMSHarrisResponse(harrisvalueG);
+            int[,] anmsG = GetANMSHarrisResponse(harrisvalueG);
             gradientR = GetGradient(test[2]);
             double[,] harrisvalueR = GetHarrisValue(gradientR);
-            harrisvalueR = GetANMSHarrisResponse(harrisvalueR);
+            int[,] anmsR = GetANMSHarrisResponse(harrisvalueR);
 
             for (int i = 0; i < iHeight; i++)
                 for (int j = 0; j < iWidth; j++)
                 {
-                    anmsharrisvalue[i, j] = harrisvalueB[i, j] + harrisvalueG[i, j] + harrisvalueR[i, j];
+                    anmsharrisvalue[i, j] = anmsB[i, j] + anmsG[i, j] + anmsR[i, j];
                 }
-            result = GetTopKValue(anmsharrisvalue, k);
-            topklist = GetTopKValueList(anmsharrisvalue, k);
+            Tuple< int[,], List < Tuple < int, int>>> temptuple = GetTopKValue(anmsharrisvalue, k);
+            result = temptuple.Item1;
+            topklist = temptuple.Item2;
+            //topklist = GetTopKValueList(anmsharrisvalue, k);
             return result;
         }
 
@@ -481,9 +498,15 @@ namespace HarrisDetectorCSharp
             for (int i = 0; i < iHeight; i++)
                 for (int j = 0; j < iWidth; j++)
                 {
-                    img[0][i, j] = (img[0][i, j] > harrisvalue[i, j]) ? img[0][i, j] : harrisvalue[i, j];
+                    //white points
+                    //img[0][i, j] = (img[0][i, j] > harrisvalue[i, j]) ? img[0][i, j] : harrisvalue[i, j];
+                    //img[1][i, j] = (img[1][i, j] > harrisvalue[i, j]) ? img[1][i, j] : harrisvalue[i, j];
+                    //img[2][i, j] = (img[2][i, j] > harrisvalue[i, j]) ? img[2][i, j] : harrisvalue[i, j];
+
+                    //green points
+                    img[0][i, j] = (img[0][i, j] > harrisvalue[i, j]) ? img[0][i, j] : 0;
                     img[1][i, j] = (img[1][i, j] > harrisvalue[i, j]) ? img[1][i, j] : harrisvalue[i, j];
-                    img[2][i, j] = (img[2][i, j] > harrisvalue[i, j]) ? img[2][i, j] : harrisvalue[i, j];
+                    img[2][i, j] = (img[2][i, j] > harrisvalue[i, j]) ? img[2][i, j] : 0;
                 }
             return img;
         }
@@ -491,10 +514,10 @@ namespace HarrisDetectorCSharp
         static List<Tuple<int[], int, int>> GetSIFTFeature(List<Tuple<int, int>> harrisvaulelist)
         {
             int subfeature_index;
-            int[] temp_sift_feature = new int[384];
             List<Tuple<int[], int, int>> feature_list = new List<Tuple<int[], int, int>>();
             foreach (Tuple<int, int> temp_loc in harrisvaulelist)
             {
+                int[] temp_sift_feature = new int[384];
                 subfeature_index = 0;
                 for (int i = 0; i < 4; i++)
                     for (int j = 0; j < 4; j++)
@@ -546,6 +569,83 @@ namespace HarrisDetectorCSharp
                     }
                 }
             return histogram;
+        }
+
+        static int GetEuclideanDistance(int[] feature1, int[] feature2)
+        {
+            int result = 0;
+            for (int i = 0; i < feature1.Length; i++)
+                result += (feature1[i] - feature2[i]) * (feature1[i] - feature2[i]);
+            return result;
+        }
+
+        static List<Tuple<int, int, int>> GetTop1Match(List<Tuple<int[], int, int>> feature_list1, List<Tuple<int[], int, int>> feature_list2)
+        {
+            int length1 = feature_list1.Count;
+            int length2 = feature_list2.Count;
+            int temp_min_distance;
+            int temp_best_match;
+            int[,] all_distance = new int[length1, length2];
+            List<Tuple<int, int, int>> top1match = new List<Tuple<int, int, int>>();
+            for (int i = 0; i < length1; i++)
+            {
+                temp_min_distance = int.MaxValue;
+                temp_best_match = 0;
+                for (int j = 0; j < length2; j++)
+                {
+                    all_distance[i, j] = GetEuclideanDistance(feature_list1[i].Item1, feature_list2[j].Item1);
+                    if (all_distance[i, j] < temp_min_distance)
+                    {
+                        temp_best_match = j;
+                        temp_min_distance = all_distance[i, j];
+                    }
+                }
+                top1match.Add(Tuple.Create(i, temp_best_match, temp_min_distance));
+            }
+            return top1match;
+        }
+
+        static void VisualizeMatch(List<int[,]> img1, List<int[,]> img2, List<Tuple<int, int, int>> match_list, int k, List<Tuple<int[], int, int>> sift_feature_image_1, List<Tuple<int[], int, int>> sift_feature_image_2)
+        {
+            int temp_x;
+            int temp_y;
+            Tuple<int, int> temp_loc = new Tuple<int, int>(0, 0);
+            for (int i = 0; i < k; i++)
+            {
+                List<int[,]> finalmap = new List<int[,]>();
+                finalmap.Add(img1[0].Clone() as int[,]);
+                finalmap.Add(img1[1].Clone() as int[,]);
+                finalmap.Add(img1[2].Clone() as int[,]);
+                temp_x = sift_feature_image_1[match_list[i].Item1].Item2;
+                temp_y = sift_feature_image_1[match_list[i].Item1].Item3;
+                for (int shift_x = -3; shift_x < 4; shift_x++)
+                    for (int shift_y = -3; shift_y < 4; shift_y++)
+                    {
+                        temp_loc = GetSafeIndex(temp_x + shift_x, temp_y + shift_y);
+                        finalmap[0][temp_loc.Item1, temp_loc.Item2] = 0;
+                        finalmap[1][temp_loc.Item1, temp_loc.Item2] = 255;
+                        finalmap[2][temp_loc.Item1, temp_loc.Item2] = 0;
+
+                    }
+                VisualizeBGRList(finalmap, "top_match_pair_" + i + "_first_part");
+
+                finalmap.Clear();
+                finalmap.Add(img2[0].Clone() as int[,]);
+                finalmap.Add(img2[1].Clone() as int[,]);
+                finalmap.Add(img2[2].Clone() as int[,]);
+                temp_x = sift_feature_image_2[match_list[i].Item2].Item2;
+                temp_y = sift_feature_image_2[match_list[i].Item2].Item3;
+                for (int shift_x = -3; shift_x < 4; shift_x++)
+                    for (int shift_y = -3; shift_y < 4; shift_y++)
+                    {
+                        temp_loc = GetSafeIndex(temp_x + shift_x, temp_y + shift_y);
+                        finalmap[0][temp_loc.Item1, temp_loc.Item2] = 0;
+                        finalmap[1][temp_loc.Item1, temp_loc.Item2] = 255;
+                        finalmap[2][temp_loc.Item1, temp_loc.Item2] = 0;
+
+                    }
+                VisualizeBGRList(finalmap, "top_match_pair_" + i + "_second_part");
+            }
         }
     }
 }
