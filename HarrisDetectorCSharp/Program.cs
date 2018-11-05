@@ -47,7 +47,7 @@ namespace HarrisDetectorCSharp
             List<Tuple<int, int, int>> match_list = GetTop1Match(sift_feature_image_1, sift_feature_image_2);
             VisualizeMatch(GetBGRList(image1), GetBGRList(image2), match_list, 50, sift_feature_image_1, sift_feature_image_2);
         }
-
+        // Get a Bitmap instance from a path string
         static Bitmap GetImage(string img)
         {
 
@@ -55,7 +55,7 @@ namespace HarrisDetectorCSharp
             image = new Bitmap(img);
             return image;
         }
-
+        // Convert RGB image to GreyScale image
         static void RGB2Grey(Bitmap bitmap)
         {
             Rectangle rect = new Rectangle(0, 0, iWidth, iHeight);
@@ -99,7 +99,7 @@ namespace HarrisDetectorCSharp
             System.Runtime.InteropServices.Marshal.Copy(newPixelValues, 0, newiPtr, PixelValues.Length);
             Result.Save("C:/Depp Data/Others/Wallpaper/Lord of the Ring/1_grey.jpg", ImageFormat.Jpeg);
         }
-
+        // Get the RGB pixel matrix from a Bitmap instance
         static List<int[,]> GetBGRList(Bitmap bitmap)
         {
             Rectangle rect = new Rectangle(0, 0, iWidth, iHeight);
@@ -135,7 +135,7 @@ namespace HarrisDetectorCSharp
             result.Add(R);
             return result;
         }
-
+        // Visualize an image from a RGB pixel matrix
         static void VisualizeBGRList(List<int[,]> list, string name)
         {
             int[,] B = list[0];
@@ -163,7 +163,7 @@ namespace HarrisDetectorCSharp
             System.Runtime.InteropServices.Marshal.Copy(PixelValues, 0, newiPtr, PixelValues.Length);
             bitmap.Save("C:/Depp Data/Others/Wallpaper/Lord of the Ring/" + name + ".bmp", ImageFormat.Bmp);
         }
-
+        // Visualize an image from a GreyScale pixel matrix
         static void VisualizeGreyImage(int[,] list, string name)
         {
             int[,] B = list;
@@ -192,22 +192,7 @@ namespace HarrisDetectorCSharp
             bitmap.Save("C:/Depp Data/Others/Wallpaper/Lord of the Ring/" + name + ".jpg", ImageFormat.Jpeg);
         }
 
-        //static List<LocationTuple> HarrisCornerDetector(List<int[,]> img)
-        //{
-        //    int iHeight = img[0].GetLength(0);
-        //    int iWidth = img[0].GetLength(1);
-        //    var B = img[0];
-        //    var G = img[1];
-        //    var R = img[2];
-        //    var gradientBX = new int[iHeight, iWidth];
-        //    var gradientBY = new int[iHeight, iWidth];
-        //    var gradientGX = new int[iHeight, iWidth];
-        //    var gradientGY = new int[iHeight, iWidth];
-        //    var gradientRX = new int[iHeight, iWidth];
-        //    var gradientRY = new int[iHeight, iWidth];
-        //    List<int[,]> gradient_list = new List<int[,]>();
-        //}
-
+        // Compute the gradient of the pixel matrix w.r.t x, y
         static Tuple<double[,], double[,]> GetGradient(int[,] img)
         {
             var gradientX = new double[iHeight, iWidth];
@@ -225,7 +210,7 @@ namespace HarrisDetectorCSharp
             return Tuple.Create(gradientX, gradientY);
 
         }
-
+        // Normalize image to [0, 255]
         static int[,] Normalize(double[,] img)
         {
             double[,] temp_img = new double[iHeight, iWidth];
@@ -246,7 +231,7 @@ namespace HarrisDetectorCSharp
                 }
             return normalized_img;
         }
-
+        // Compute raw Harris value of each pixel in an image
         static double[,] GetHarrisValue(Tuple<double[,], double[,]> gradient_matrix)
         {
             double[,] gradientX = gradient_matrix.Item1;
@@ -276,7 +261,7 @@ namespace HarrisDetectorCSharp
                 }
             return HarrisValue;
         }
-        
+        // Get the Harris detector response without NMS
         static int[,] GetHarrisResponse(double[,] img)
         {
             double mean = 0;
@@ -296,7 +281,7 @@ namespace HarrisDetectorCSharp
                 }
             return response;
         }
-
+        // Get the Harris detector response with ANMS
         static int[,] GetANMSHarrisResponse(double[,] img)
         {
             int[,] anms_harris_value = new int[iHeight, iWidth];
@@ -356,7 +341,7 @@ namespace HarrisDetectorCSharp
             return anms_harris_value;
 
         }
-
+        // Get the top K tuple list and pixel matrix with response highlighted
         static Tuple<int[,], List<Tuple<int, int>>> GetTopKValue(int[,] img, int k)
         {
             int[,] result = new int[iHeight, iWidth];
@@ -385,7 +370,7 @@ namespace HarrisDetectorCSharp
             
             return Tuple.Create(result, resultlist);
         }
-
+        // DEPRECATED! Get the top K tuple list
         static List<Tuple<int, int>> GetTopKValueList(double[,] img, int k)
         {
             double[] list = img.Cast<double>().ToArray<double>();
@@ -425,7 +410,7 @@ namespace HarrisDetectorCSharp
 
             return result;
         }
-
+        // Get the max value of a loop
         static double GetMaxValueOfLoop(double[,] img, int x, int y, int r)
         {
             List<double> list = new List<double>();
@@ -446,7 +431,7 @@ namespace HarrisDetectorCSharp
             }
             return list.Max();
         }
-
+        // Get the safe index of (x, y) to prevent overflow
         static Tuple<int, int> GetSafeIndex(int x, int y)
         {
             int xsafe, ysafe;
@@ -464,7 +449,7 @@ namespace HarrisDetectorCSharp
             else ysafe = 0;
             return Tuple.Create(xsafe, ysafe);
         }
-
+        // Main function of Harris Keypoint detector with ANMS
         static int[,] ANMSHarrisDetector(Bitmap image, int k)
         {
             List<int[,]> test = GetBGRList(image);
@@ -492,7 +477,7 @@ namespace HarrisDetectorCSharp
             //topklist = GetTopKValueList(anmsharrisvalue, k);
             return result;
         }
-
+        // Combine Harris keypoints with original image for visualization
         static List<int[,]> CombineHarrisValueImage(List<int[,]> img, int[,] harrisvalue)
         {
             for (int i = 0; i < iHeight; i++)
@@ -510,7 +495,7 @@ namespace HarrisDetectorCSharp
                 }
             return img;
         }
-
+        // Compute SIFT feature
         static List<Tuple<int[], int, int>> GetSIFTFeature(List<Tuple<int, int>> harrisvaulelist)
         {
             int subfeature_index;
@@ -530,7 +515,7 @@ namespace HarrisDetectorCSharp
             }
             return feature_list;
         }
-
+        // Compute the gradient angle histogram of a 4x4 area
         static int[] GetAngleHistogram(Tuple<double[,], double[,]> gradient, int x, int y)
         {
             int[] histogram = new int[8];
@@ -570,7 +555,7 @@ namespace HarrisDetectorCSharp
                 }
             return histogram;
         }
-
+        // Compute Euclidean Distance
         static int GetEuclideanDistance(int[] feature1, int[] feature2)
         {
             int result = 0;
@@ -578,7 +563,7 @@ namespace HarrisDetectorCSharp
                 result += (feature1[i] - feature2[i]) * (feature1[i] - feature2[i]);
             return result;
         }
-
+        // Get Top1 match using Euclidean Distance
         static List<Tuple<int, int, int>> GetTop1Match(List<Tuple<int[], int, int>> feature_list1, List<Tuple<int[], int, int>> feature_list2)
         {
             int length1 = feature_list1.Count;
@@ -604,7 +589,7 @@ namespace HarrisDetectorCSharp
             }
             return top1match;
         }
-
+        // Visualize match results
         static void VisualizeMatch(List<int[,]> img1, List<int[,]> img2, List<Tuple<int, int, int>> match_list, int k, List<Tuple<int[], int, int>> sift_feature_image_1, List<Tuple<int[], int, int>> sift_feature_image_2)
         {
             int temp_x;
