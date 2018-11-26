@@ -24,6 +24,8 @@ namespace HarrisDetectorCSharp
 
         static void Main(string[] args)
         {
+            ConcatImageTest();
+
             string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/harristest_small1.jpg";
             //string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/1.jpg";
             //string str1 = "C:/Users/mdp/OneDrive/Pictures/img1.jpg";
@@ -136,18 +138,30 @@ namespace HarrisDetectorCSharp
             return result;
         }
         // Visualize an image from a RGB pixel matrix
-        static void VisualizeBGRList(List<int[,]> list, string name)
+        static void VisualizeBGRList(List<int[,]> list, string name, int mode = 0, int height = 0, int width = 0)
         {
+            int out_height = 0;
+            int out_width = 0;
+            if (mode == 0)
+            {
+                out_height = iHeight;
+                out_height = iWidth;
+            }
+            else
+            {
+                out_height = height;
+                out_width = width;
+            }
             int[,] B = list[0];
             int[,] G = list[1];
             int[,] R = list[2];
-            byte[] PixelValues = new byte[iWidth * iHeight * 3];
+            byte[] PixelValues = new byte[out_width * out_height * 3];
 
             int iPoint = 0;
 
-            for (int i = 0; i < iHeight; i++)
+            for (int i = 0; i < out_height; i++)
             {
-                for (int j = 0; j < iWidth; j++)
+                for (int j = 0; j < out_width; j++)
                 {
                     PixelValues[iPoint++] = Convert.ToByte(B[i, j]);
                     PixelValues[iPoint++] = Convert.ToByte(G[i, j]);
@@ -155,8 +169,8 @@ namespace HarrisDetectorCSharp
                 }
             }
 
-            Bitmap bitmap = new Bitmap(iWidth, iHeight, PixelFormat.Format24bppRgb);
-            Rectangle newrect = new Rectangle(0, 0, iWidth, iHeight);
+            Bitmap bitmap = new Bitmap(out_width, out_height, PixelFormat.Format24bppRgb);
+            Rectangle newrect = new Rectangle(0, 0, out_width, out_height);
             BitmapData newbmpData = bitmap.LockBits(newrect,
                 ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
             IntPtr newiPtr = newbmpData.Scan0;
@@ -631,6 +645,54 @@ namespace HarrisDetectorCSharp
                     }
                 VisualizeBGRList(finalmap, "top_match_pair_" + i + "_second_part");
             }
+        }
+
+        static void NewVisualizeMatch(List<int[,]> img1, List<int[,]> img2, List<Tuple<int, int, int>> match_list, int k, List<Tuple<int[], int, int>> sift_feature_image_1, List<Tuple<int[], int, int>> sift_feature_image_2)
+        {
+
+        }
+
+        static void ConcatImageTest()
+        {
+            string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/harristest_small1.jpg";
+            Bitmap image1 = GetImage(str1);
+            string str2 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/harristest_small2.jpg";
+            Bitmap image2 = GetImage(str2);
+            iHeight = image1.Height;
+            iWidth = image1.Width;
+            List<int[,]> rgblist1 = GetBGRList(image1);
+            List<int[,]> rgblist2 = GetBGRList(image2);
+            List<int[,]> newrgblist = new List<int[,]>();
+            int[] temp_matrix = new int[2 * iHeight * iWidth];
+            for (int i = 0; i < 3; i++)
+            {
+                Array.Copy(ConvertMatrix2Array(rgblist1[i], iWidth, iHeight), temp_matrix, iHeight * iWidth);
+                Array.Copy(ConvertMatrix2Array(rgblist2[i], iWidth, iHeight), 0, temp_matrix, iHeight * iWidth, iHeight * iWidth);
+                newrgblist.Add(ConvertArray2Matrix(temp_matrix, iWidth, iHeight * 2));
+            }
+            VisualizeBGRList(newrgblist, "concattest", 1, iHeight * 2, iWidth);
+        }
+
+        static int[,] ConvertArray2Matrix(int[] source, int width, int height)
+        {
+            int[,] result = new int[height, width];
+            for (int i = 0; i < height; i++)
+                for (int j = 0; j < width; j++)
+                {
+                    result[i, j] = source[i * width + j];
+                }
+            return result;
+        }
+
+        static int[] ConvertMatrix2Array(int[,] source, int width, int height)
+        {
+            int[] result = new int[height * width];
+            for (int i = 0; i < height; i++)
+                for (int j = 0; j < width; j++)
+                {
+                    result[i * width + j] = source[i, j];
+                }
+            return result;
         }
     }
 }
