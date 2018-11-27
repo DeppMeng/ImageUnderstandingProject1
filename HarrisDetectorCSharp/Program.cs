@@ -24,7 +24,7 @@ namespace HarrisDetectorCSharp
 
         static void Main(string[] args)
         {
-            ConcatImageTest();
+            //ConcatImageTest();
 
             string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/harristest_small1.jpg";
             //string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/1.jpg";
@@ -47,7 +47,8 @@ namespace HarrisDetectorCSharp
             VisualizeBGRList(finalmap, "small_test_anms_2");
             List<Tuple<int[], int, int>> sift_feature_image_2 = GetSIFTFeature(topklist);
             List<Tuple<int, int, int>> match_list = GetTop1Match(sift_feature_image_1, sift_feature_image_2);
-            VisualizeMatch(GetBGRList(image1), GetBGRList(image2), match_list, 50, sift_feature_image_1, sift_feature_image_2);
+            //VisualizeMatch(GetBGRList(image1), GetBGRList(image2), match_list, sift_feature_image_1, sift_feature_image_2);
+            NewVisualizeMatch(GetBGRList(image1), GetBGRList(image2), match_list, sift_feature_image_1, sift_feature_image_2);
         }
         // Get a Bitmap instance from a path string
         static Bitmap GetImage(string img)
@@ -145,7 +146,7 @@ namespace HarrisDetectorCSharp
             if (mode == 0)
             {
                 out_height = iHeight;
-                out_height = iWidth;
+                out_width = iWidth;
             }
             else
             {
@@ -585,7 +586,9 @@ namespace HarrisDetectorCSharp
             int temp_min_distance;
             int temp_best_match;
             int[,] all_distance = new int[length1, length2];
-            List<Tuple<int, int, int>> top1match = new List<Tuple<int, int, int>>();
+            List<Tuple<int, int, int>> top1match1 = new List<Tuple<int, int, int>>();
+            List<Tuple<int, int, int>> top1match2 = new List<Tuple<int, int, int>>();
+            List<Tuple<int, int, int>> finaltop1match = new List<Tuple<int, int, int>>();
             for (int i = 0; i < length1; i++)
             {
                 temp_min_distance = int.MaxValue;
@@ -599,15 +602,35 @@ namespace HarrisDetectorCSharp
                         temp_min_distance = all_distance[i, j];
                     }
                 }
-                top1match.Add(Tuple.Create(i, temp_best_match, temp_min_distance));
+                top1match1.Add(Tuple.Create(i, temp_best_match, temp_min_distance));
             }
-            return top1match;
+            for (int j = 0; j < length2; j++)
+            {
+                temp_min_distance = int.MaxValue;
+                temp_best_match = 0;
+                for (int i = 0; i < length1; i++)
+                {
+                    if (all_distance[i, j] < temp_min_distance)
+                    {
+                        temp_best_match = i;
+                        temp_min_distance = all_distance[i, j];
+                    }
+                }
+                top1match2.Add(Tuple.Create(j, temp_best_match, temp_min_distance));
+            }
+            for (int i = 0; i < length1; i++)
+            {
+                if (top1match2[top1match1[i].Item2].Item2 == i)
+                    finaltop1match.Add(top1match1[i]);
+            }
+            return finaltop1match;
         }
         // Visualize match results
-        static void VisualizeMatch(List<int[,]> img1, List<int[,]> img2, List<Tuple<int, int, int>> match_list, int k, List<Tuple<int[], int, int>> sift_feature_image_1, List<Tuple<int[], int, int>> sift_feature_image_2)
+        static void VisualizeMatch(List<int[,]> img1, List<int[,]> img2, List<Tuple<int, int, int>> match_list, List<Tuple<int[], int, int>> sift_feature_image_1, List<Tuple<int[], int, int>> sift_feature_image_2)
         {
             int temp_x;
             int temp_y;
+            int k = match_list.Count();
             Tuple<int, int> temp_loc = new Tuple<int, int>(0, 0);
             for (int i = 0; i < k; i++)
             {
@@ -647,8 +670,25 @@ namespace HarrisDetectorCSharp
             }
         }
 
-        static void NewVisualizeMatch(List<int[,]> img1, List<int[,]> img2, List<Tuple<int, int, int>> match_list, int k, List<Tuple<int[], int, int>> sift_feature_image_1, List<Tuple<int[], int, int>> sift_feature_image_2)
+        static void NewVisualizeMatch(List<int[,]> img1, List<int[,]> img2, List<Tuple<int, int, int>> match_list, List<Tuple<int[], int, int>> sift_feature_image_1, List<Tuple<int[], int, int>> sift_feature_image_2)
         {
+            List<int[,]> concatrgblist = GetConcatImageList(img1, img2);
+            List<int[,]> finalrgblist = new List<int[,]>();
+            int temp_x1, temp_x2;
+            int temp_y1, temp_y2;
+            int k = match_list.Count();
+            List<Tuple<int, int, int, int>> list_loc = new List<Tuple<int, int, int, int>>();
+            //Tuple<int, int> temp_loc = new Tuple<int, int>(0, 0);
+            for (int i = 0; i < k; i++)
+            {
+                temp_x1 = sift_feature_image_1[match_list[i].Item1].Item2;
+                temp_y1 = sift_feature_image_1[match_list[i].Item1].Item3;
+                temp_x2 = sift_feature_image_2[match_list[i].Item2].Item2 + iHeight;
+                temp_y2 = sift_feature_image_2[match_list[i].Item2].Item3;
+                list_loc.Add(Tuple.Create(temp_x1, temp_y1, temp_x2, temp_y2));
+            }
+            finalrgblist = DrawConnections(concatrgblist, list_loc);
+            VisualizeBGRList(finalrgblist, "visualizetest", 1, iHeight * 2, iWidth);
 
         }
 
@@ -673,6 +713,27 @@ namespace HarrisDetectorCSharp
             VisualizeBGRList(newrgblist, "concattest", 1, iHeight * 2, iWidth);
         }
 
+        static List<int[,]> GetConcatImageList(List<int[,]> rgblist1, List<int[,]> rgblist2)
+        {
+            //string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/harristest_small1.jpg";
+            //Bitmap image1 = GetImage(str1);
+            //string str2 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/harristest_small2.jpg";
+            //Bitmap image2 = GetImage(str2);
+            //iHeight = image1.Height;
+            //iWidth = image1.Width;
+            //List<int[,]> rgblist1 = GetBGRList(image1);
+            //List<int[,]> rgblist2 = GetBGRList(image2);
+            List<int[,]> newrgblist = new List<int[,]>();
+            int[] temp_matrix = new int[2 * iHeight * iWidth];
+            for (int i = 0; i < 3; i++)
+            {
+                Array.Copy(ConvertMatrix2Array(rgblist1[i], iWidth, iHeight), temp_matrix, iHeight * iWidth);
+                Array.Copy(ConvertMatrix2Array(rgblist2[i], iWidth, iHeight), 0, temp_matrix, iHeight * iWidth, iHeight * iWidth);
+                newrgblist.Add(ConvertArray2Matrix(temp_matrix, iWidth, iHeight * 2));
+            }
+            return newrgblist;
+        }
+
         static int[,] ConvertArray2Matrix(int[] source, int width, int height)
         {
             int[,] result = new int[height, width];
@@ -693,6 +754,22 @@ namespace HarrisDetectorCSharp
                     result[i * width + j] = source[i, j];
                 }
             return result;
+        }
+
+        static List<int[,]> DrawConnections(List<int[,]> img, List<Tuple<int, int, int, int>> list_loc)
+        {
+            foreach (Tuple<int, int, int, int> tuple_loc in list_loc)
+            {
+                int temp_y, temp_x;
+                for (temp_x = tuple_loc.Item1; temp_x < tuple_loc.Item3; temp_x++)
+                {
+                    temp_y = tuple_loc.Item2 + (tuple_loc.Item4 - tuple_loc.Item2) * (temp_x - tuple_loc.Item1) / (tuple_loc.Item3 - tuple_loc.Item1);
+                    img[0][temp_x, temp_y] = 0;
+                    img[1][temp_x, temp_y] = 0;
+                    img[2][temp_x, temp_y] = 255;
+                }
+            }
+            return img;
         }
     }
 }
