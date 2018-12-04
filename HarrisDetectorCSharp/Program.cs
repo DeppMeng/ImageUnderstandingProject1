@@ -26,7 +26,7 @@ namespace HarrisDetectorCSharp
         {
             //ConcatImageTest();
 
-            string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/harristest_small1.jpg";
+            string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/new_test_1.JPG";
             //string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/1.jpg";
             //string str1 = "C:/Users/mdp/OneDrive/Pictures/img1.jpg";
 
@@ -34,21 +34,21 @@ namespace HarrisDetectorCSharp
             iHeight = image1.Height;
             iWidth = image1.Width;
             //RGB2Grey(image);
-            int[,] responsemap = ANMSHarrisDetector(image1, 250);
+            int[,] responsemap = ANMSHarrisDetector(image1, 500);
             List<int[,]> finalmap = CombineHarrisValueImage(GetBGRList(image1), responsemap);
-            VisualizeBGRList(finalmap, "small_test_anms_1");
+            //VisualizeBGRList(finalmap, "small_test_anms_1");
             List<Tuple<int[], int, int>> sift_feature_image_1 = GetSIFTFeature(topklist);
 
-            string str2 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/harristest_small2.jpg";
+            string str2 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/new_test_2.JPG";
 
             Bitmap image2 = GetImage(str2);
-            responsemap = ANMSHarrisDetector(image2, 250);
+            responsemap = ANMSHarrisDetector(image2, 500);
             finalmap = CombineHarrisValueImage(GetBGRList(image2), responsemap);
-            VisualizeBGRList(finalmap, "small_test_anms_2");
+            //VisualizeBGRList(finalmap, "small_test_anms_2");
             List<Tuple<int[], int, int>> sift_feature_image_2 = GetSIFTFeature(topklist);
             List<Tuple<int, int, int>> match_list = GetTop1Match(sift_feature_image_1, sift_feature_image_2);
             //VisualizeMatch(GetBGRList(image1), GetBGRList(image2), match_list, sift_feature_image_1, sift_feature_image_2);
-            NewVisualizeMatch(GetBGRList(image1), GetBGRList(image2), match_list, sift_feature_image_1, sift_feature_image_2);
+            NewVisualizeMatch(GetBGRList(image1), GetBGRList(image2), match_list, sift_feature_image_1, sift_feature_image_2, "new_test");
         }
         // Get a Bitmap instance from a path string
         static Bitmap GetImage(string img)
@@ -176,7 +176,7 @@ namespace HarrisDetectorCSharp
                 ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
             IntPtr newiPtr = newbmpData.Scan0;
             System.Runtime.InteropServices.Marshal.Copy(PixelValues, 0, newiPtr, PixelValues.Length);
-            bitmap.Save("C:/Depp Data/Others/Wallpaper/Lord of the Ring/" + name + ".bmp", ImageFormat.Bmp);
+            bitmap.Save("C:/Depp Data/Others/Wallpaper/Lord of the Ring/" + name + ".jpg", ImageFormat.Jpeg);
         }
         // Visualize an image from a GreyScale pixel matrix
         static void VisualizeGreyImage(int[,] list, string name)
@@ -670,7 +670,7 @@ namespace HarrisDetectorCSharp
             }
         }
 
-        static void NewVisualizeMatch(List<int[,]> img1, List<int[,]> img2, List<Tuple<int, int, int>> match_list, List<Tuple<int[], int, int>> sift_feature_image_1, List<Tuple<int[], int, int>> sift_feature_image_2)
+        static void NewVisualizeMatch(List<int[,]> img1, List<int[,]> img2, List<Tuple<int, int, int>> match_list, List<Tuple<int[], int, int>> sift_feature_image_1, List<Tuple<int[], int, int>> sift_feature_image_2, string name)
         {
             List<int[,]> concatrgblist = GetConcatImageList(img1, img2);
             List<int[,]> finalrgblist = new List<int[,]>();
@@ -688,29 +688,38 @@ namespace HarrisDetectorCSharp
                 list_loc.Add(Tuple.Create(temp_x1, temp_y1, temp_x2, temp_y2));
             }
             finalrgblist = DrawConnections(concatrgblist, list_loc);
-            VisualizeBGRList(finalrgblist, "visualizetest", 1, iHeight * 2, iWidth);
+            VisualizeBGRList(finalrgblist, name, 1, iHeight * 2, iWidth);
 
         }
 
         static void ConcatImageTest()
         {
-            string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/harristest_small1.jpg";
+            //string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/prtscn_test.jpg";
+            //string str2 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/prtscn_test.jpg";
+            string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/new_test_1.JPG";
+            string str2 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/new_test_1.JPG";
+            //string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/1.jpg";
+            //string str2 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/1.jpg";
+            //string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/neww_test_landscape_1.jpg";
+            //string str2 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/neww_test_landscape_1.jpg";
             Bitmap image1 = GetImage(str1);
-            string str2 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/harristest_small2.jpg";
             Bitmap image2 = GetImage(str2);
             iHeight = image1.Height;
             iWidth = image1.Width;
             List<int[,]> rgblist1 = GetBGRList(image1);
             List<int[,]> rgblist2 = GetBGRList(image2);
             List<int[,]> newrgblist = new List<int[,]>();
-            int[] temp_matrix = new int[2 * iHeight * iWidth];
+            int[] temp_matrix = new int[4 * iHeight * iWidth];
             for (int i = 0; i < 3; i++)
             {
                 Array.Copy(ConvertMatrix2Array(rgblist1[i], iWidth, iHeight), temp_matrix, iHeight * iWidth);
                 Array.Copy(ConvertMatrix2Array(rgblist2[i], iWidth, iHeight), 0, temp_matrix, iHeight * iWidth, iHeight * iWidth);
-                newrgblist.Add(ConvertArray2Matrix(temp_matrix, iWidth, iHeight * 2));
+                Array.Copy(ConvertMatrix2Array(rgblist2[i], iWidth, iHeight), 0, temp_matrix, 2 * iHeight * iWidth, iHeight * iWidth);
+                Array.Copy(ConvertMatrix2Array(rgblist2[i], iWidth, iHeight), 0, temp_matrix, 3 * iHeight * iWidth, iHeight * iWidth);
+                newrgblist.Add(ConvertArray2Matrix(temp_matrix, iWidth, iHeight * 4));
             }
-            VisualizeBGRList(newrgblist, "concattest", 1, iHeight * 2, iWidth);
+            VisualizeBGRList(rgblist2, "concattest_base", 1, iHeight, iWidth);
+            VisualizeBGRList(newrgblist, "concattest", 1, iHeight * 4, iWidth);
         }
 
         static List<int[,]> GetConcatImageList(List<int[,]> rgblist1, List<int[,]> rgblist2)
