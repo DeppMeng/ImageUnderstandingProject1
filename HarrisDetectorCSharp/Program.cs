@@ -822,10 +822,57 @@ namespace HarrisDetectorCSharp
             VisualizeBGRList(GetCylindricalProjection(rgblist1, 500), "cylindrical_test", 1, 3000, 1600);
         }
 
-        Tuple<int, int> RANSAC(List<int[,]> img1, List<int[,]> img2, List<Tuple<int[], int, int>> feature_list1, List<Tuple<int[], int, int>> feature_list2)
+        static Tuple<int, int> RANSAC(List<int[,]> img1, List<int[,]> img2, List<Tuple<int[], int, int>> feature_list1, List<Tuple<int[], int, int>> feature_list2)
         {
             List<Tuple<int, int, int>> match_list = GetTop1Match(feature_list1, feature_list2);
+            List<Tuple<int, int>> shift_list = GetShiftList(feature_list1, feature_list2, match_list);
+            double temp_avg_x_shift, temp_avg_y_shift, max_avg_x_shift, max_avg_y_shift;
+            int temp_inliner_count = 0;
+            int max_inliner_count;
+            Random random = new Random();
+            for (int k = 0; k < 1000; k++)
+            {
+                int num_ran1 = random.Next(0, shift_list.Count);
+                int num_ran2 = random.Next(0, shift_list.Count);
+                int num_ran3 = random.Next(0, shift_list.Count);
+                int num_ran4 = random.Next(0, shift_list.Count);
+                temp_avg_x_shift = (shift_list[num_ran1].Item1 + shift_list[num_ran2].Item1 + shift_list[num_ran3].Item1 + shift_list[num_ran4].Item1) / 4;
+                temp_avg_y_shift = (shift_list[num_ran1].Item2 + shift_list[num_ran2].Item2 + shift_list[num_ran3].Item2 + shift_list[num_ran4].Item2) / 4;
+                temp_inliner_count = GetInlinerCount(shift_list, temp_avg_x_shift, temp_avg_y_shift);
+                if (k == 0)
+                {
+                    max_avg_x_shift = temp_avg_x_shift;
+                    max_avg_y_shift = temp_avg_y_shift;
+                    max_inliner_count = temp_inliner_count;
+                }
+                
 
+            }
+        }
+
+        static List<Tuple<int, int>> GetShiftList(List<Tuple<int[], int, int>> feature_list1, List<Tuple<int[], int, int>> feature_list2, List<Tuple<int, int, int>> match_list)
+        {
+            List<Tuple<int, int>> shift_list = new List<Tuple<int, int>>();
+            int temp_shift_x, temp_shift_y;
+            foreach (Tuple<int, int, int> match_item in match_list)
+            {
+                temp_shift_x = feature_list2[match_item.Item2].Item2 - feature_list1[match_item.Item1].Item2;
+                temp_shift_y = feature_list2[match_item.Item2].Item3 - feature_list1[match_item.Item1].Item3;
+                shift_list.Add(Tuple.Create(temp_shift_x, temp_shift_y));
+            }
+            return shift_list;
+        }
+
+        static int GetInlinerCount(List<Tuple<int, int>> shift_list, int x_shift, int y_shift)
+        {
+            double alpha = 10;
+            int count = 0;
+            foreach (Tuple<int, int> shift_item in shift_list)
+            {
+                if (Math.Abs(x_shift - shift_item.Item1) + Math.Abs(y_shift - shift_item.Item2) < alpha)
+                    count++;
+            }
+            return count;
         }
     }
 }
