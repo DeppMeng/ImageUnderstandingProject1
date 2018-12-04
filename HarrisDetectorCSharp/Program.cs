@@ -21,10 +21,12 @@ namespace HarrisDetectorCSharp
         static Tuple<double[,], double[,]> gradientR;
         static List<Tuple<int, int>> topklist;
         static bool parallel = true;
+        static int f = 1500;
 
         static void Main(string[] args)
         {
             //ConcatImageTest();
+            CylindricalProjectionTest();
 
             string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/new_test_1.JPG";
             //string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/1.jpg";
@@ -779,6 +781,51 @@ namespace HarrisDetectorCSharp
                 }
             }
             return img;
+        }
+
+        // Project 2
+
+        static List<int[,]> GetCylindricalProjection(List<int[,]> img, int pad)
+        {
+            List<int[,]> cylindrical_map = new List<int[,]>();
+            int x_cen = iHeight / 2;
+            int y_cen = iWidth / 2;
+            int x_curr, y_curr;
+            int x_cyl, y_cyl;
+            double theta, h;
+            for (int k = 0; k < 3; k++)
+            {
+                int[,] temp_cyl_map = new int[3000, 1600];
+                for (int i = 0; i < iHeight; i++)
+                    for (int j = 0; j < iWidth; j++)
+                    {
+                        x_curr = i - x_cen;
+                        y_curr = j - y_cen;
+                        theta = Math.Asin(y_curr / (Math.Sqrt(f * f + y_curr * y_curr)));
+                        h = x_curr / (Math.Sqrt(y_curr * y_curr + f * f));
+                        y_cyl = (int)Math.Round(f * theta + 800);
+                        x_cyl = (int)Math.Round(f * h + 1500);
+                        temp_cyl_map[x_cyl, y_cyl] = img[k][i, j];
+                    }
+                cylindrical_map.Add(temp_cyl_map);
+            }
+            return cylindrical_map;
+        }
+
+        static void CylindricalProjectionTest()
+        {
+            string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/new_test_vertical_1.jpg";
+            Bitmap image1 = GetImage(str1);
+            iHeight = image1.Height;
+            iWidth = image1.Width;
+            List<int[,]> rgblist1 = GetBGRList(image1);
+            VisualizeBGRList(GetCylindricalProjection(rgblist1, 500), "cylindrical_test", 1, 3000, 1600);
+        }
+
+        Tuple<int, int> RANSAC(List<int[,]> img1, List<int[,]> img2, List<Tuple<int[], int, int>> feature_list1, List<Tuple<int[], int, int>> feature_list2)
+        {
+            List<Tuple<int, int, int>> match_list = GetTop1Match(feature_list1, feature_list2);
+
         }
     }
 }
