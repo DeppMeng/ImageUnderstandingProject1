@@ -1020,7 +1020,7 @@ namespace HarrisDetectorCSharp
 
 
             List<int[,]> curr_stitch_map = new List<int[,]>();
-            for (int i = 17; i > 1; i++)
+            for (int i = 17; i > 1; i--)
             {
                 curr_stitch_map = ImageStitching(cylimg[i - 1], cylimg[i], shift_tuple[i - 1], curr_loc_tuple);
                 curr_loc_tuple = TupleAdd(curr_loc_tuple, shift_tuple[i - 1]);
