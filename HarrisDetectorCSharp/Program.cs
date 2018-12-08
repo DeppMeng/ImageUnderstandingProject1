@@ -25,10 +25,16 @@ namespace HarrisDetectorCSharp
 
         static void Main(string[] args)
         {
-            //ConcatImageTest();
-            CylindricalProjectionTest();
+            //Project1();
+            ImageStitchingTest();
+            //Project2();
 
-            string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/new_test_1.JPG";
+
+        }
+
+        static void Project1()
+        {
+            string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/new_test_3.JPG";
             //string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/1.jpg";
             //string str1 = "C:/Users/mdp/OneDrive/Pictures/img1.jpg";
 
@@ -36,22 +42,48 @@ namespace HarrisDetectorCSharp
             iHeight = image1.Height;
             iWidth = image1.Width;
             //RGB2Grey(image);
-            int[,] responsemap = ANMSHarrisDetector(image1, 500);
+            List<int[,]> img1 = GetBGRList(image1);
+            int[,] responsemap = ANMSHarrisDetector(img1, 500);
             List<int[,]> finalmap = CombineHarrisValueImage(GetBGRList(image1), responsemap);
             //VisualizeBGRList(finalmap, "small_test_anms_1");
             List<Tuple<int[], int, int>> sift_feature_image_1 = GetSIFTFeature(topklist);
 
-            string str2 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/new_test_2.JPG";
+            string str2 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/new_test_4.JPG";
 
             Bitmap image2 = GetImage(str2);
-            responsemap = ANMSHarrisDetector(image2, 500);
+            List<int[,]> img2 = GetBGRList(image2);
+            responsemap = ANMSHarrisDetector(img2, 500);
             finalmap = CombineHarrisValueImage(GetBGRList(image2), responsemap);
             //VisualizeBGRList(finalmap, "small_test_anms_2");
             List<Tuple<int[], int, int>> sift_feature_image_2 = GetSIFTFeature(topklist);
             List<Tuple<int, int, int>> match_list = GetTop1Match(sift_feature_image_1, sift_feature_image_2);
             //VisualizeMatch(GetBGRList(image1), GetBGRList(image2), match_list, sift_feature_image_1, sift_feature_image_2);
-            NewVisualizeMatch(GetBGRList(image1), GetBGRList(image2), match_list, sift_feature_image_1, sift_feature_image_2, "new_test");
+            NewVisualizeMatch(GetBGRList(image1), GetBGRList(image2), match_list, sift_feature_image_1, sift_feature_image_2, "new_test_23");
+
         }
+
+        static void Project2()
+        {
+            string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/new_test_vertical_1.jpg";
+            string str2 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/new_test_vertical_2.jpg";
+            Bitmap image1 = GetImage(str1);
+            Bitmap image2 = GetImage(str2);
+            iHeight = image1.Height;
+            iWidth = image1.Width;
+
+
+            List<int[,]> img1 = GetBGRList(image1);
+            List<int[,]> img2 = GetBGRList(image2);
+            List<int[,]> cylimg1 = GetCylindricalProjection(img1, 500);
+            List<int[,]> cylimg2 = GetCylindricalProjection(img2, 500);
+            int[,] responsemap1 = ANMSHarrisDetector(cylimg1, 500);
+            List<Tuple<int[], int, int>> sift_feature_image_1 = GetSIFTFeature(topklist);
+            int[,] responsemap2 = ANMSHarrisDetector(cylimg2, 500);
+            List<Tuple<int[], int, int>> sift_feature_image_2 = GetSIFTFeature(topklist);
+
+            Tuple<int, int> shift_tuple = RANSAC(sift_feature_image_1, sift_feature_image_2);
+        }
+
         // Get a Bitmap instance from a path string
         static Bitmap GetImage(string img)
         {
@@ -467,9 +499,9 @@ namespace HarrisDetectorCSharp
             return Tuple.Create(xsafe, ysafe);
         }
         // Main function of Harris Keypoint detector with ANMS
-        static int[,] ANMSHarrisDetector(Bitmap image, int k)
+        static int[,] ANMSHarrisDetector(List<int[,]> test, int k)
         {
-            List<int[,]> test = GetBGRList(image);
+            //List<int[,]> test = GetBGRList(image);
             int[,] anmsharrisvalue = new int[iHeight, iWidth];
             int[,] result = new int[iHeight, iWidth];
 
@@ -515,6 +547,47 @@ namespace HarrisDetectorCSharp
         // Compute SIFT feature
         static List<Tuple<int[], int, int>> GetSIFTFeature(List<Tuple<int, int>> harrisvaulelist)
         {
+            int subfeature_index;
+            List<Tuple<int[], int, int>> feature_list = new List<Tuple<int[], int, int>>();
+            foreach (Tuple<int, int> temp_loc in harrisvaulelist)
+            {
+                int[] temp_sift_feature = new int[384];
+                subfeature_index = 0;
+                for (int i = 0; i < 4; i++)
+                    for (int j = 0; j < 4; j++)
+                    {
+                        Array.Copy(GetAngleHistogram(gradientB, temp_loc.Item1 + 4 * i - 8, temp_loc.Item2 + 4 * j - 8), 0, temp_sift_feature, 8 * subfeature_index++, 8);
+                        Array.Copy(GetAngleHistogram(gradientG, temp_loc.Item1 + 4 * i - 8, temp_loc.Item2 + 4 * j - 8), 0, temp_sift_feature, 8 * subfeature_index++, 8);
+                        Array.Copy(GetAngleHistogram(gradientR, temp_loc.Item1 + 4 * i - 8, temp_loc.Item2 + 4 * j - 8), 0, temp_sift_feature, 8 * subfeature_index++, 8);
+                    }
+                feature_list.Add(Tuple.Create(temp_sift_feature, temp_loc.Item1, temp_loc.Item2));
+            }
+            return feature_list;
+        }
+
+        static List<Tuple<int[], int, int>> NewGetSIFTFeature(List<int[,]> test, int k)
+        {//List<int[,]> test = GetBGRList(image);
+            int[,] anmsharrisvalue = new int[iHeight, iWidth];
+            int[,] result = new int[iHeight, iWidth];
+
+            gradientB = GetGradient(test[0]);
+            double[,] harrisvalueB = GetHarrisValue(gradientB);
+            int[,] anmsB = GetANMSHarrisResponse(harrisvalueB);
+            gradientG = GetGradient(test[1]);
+            double[,] harrisvalueG = GetHarrisValue(gradientG);
+            int[,] anmsG = GetANMSHarrisResponse(harrisvalueG);
+            gradientR = GetGradient(test[2]);
+            double[,] harrisvalueR = GetHarrisValue(gradientR);
+            int[,] anmsR = GetANMSHarrisResponse(harrisvalueR);
+
+            for (int i = 0; i < iHeight; i++)
+                for (int j = 0; j < iWidth; j++)
+                {
+                    anmsharrisvalue[i, j] = anmsB[i, j] + anmsG[i, j] + anmsR[i, j];
+                }
+            Tuple<int[,], List<Tuple<int, int>>> temptuple = GetTopKValue(anmsharrisvalue, k);
+            result = temptuple.Item1;
+            List<Tuple<int, int>> harrisvaulelist = temptuple.Item2;
             int subfeature_index;
             List<Tuple<int[], int, int>> feature_list = new List<Tuple<int[], int, int>>();
             foreach (Tuple<int, int> temp_loc in harrisvaulelist)
@@ -822,15 +895,16 @@ namespace HarrisDetectorCSharp
             VisualizeBGRList(GetCylindricalProjection(rgblist1, 500), "cylindrical_test", 1, 3000, 1600);
         }
 
-        static Tuple<int, int> RANSAC(List<int[,]> img1, List<int[,]> img2, List<Tuple<int[], int, int>> feature_list1, List<Tuple<int[], int, int>> feature_list2)
+        static Tuple<int, int> RANSAC(List<Tuple<int[], int, int>> feature_list1, List<Tuple<int[], int, int>> feature_list2)
         {
             List<Tuple<int, int, int>> match_list = GetTop1Match(feature_list1, feature_list2);
             List<Tuple<int, int>> shift_list = GetShiftList(feature_list1, feature_list2, match_list);
-            double temp_avg_x_shift, temp_avg_y_shift, max_avg_x_shift, max_avg_y_shift;
+            double temp_avg_x_shift, temp_avg_y_shift;
+            double max_avg_x_shift = 0, max_avg_y_shift = 0;
             int temp_inliner_count = 0;
-            int max_inliner_count;
+            int max_inliner_count = 0;
             Random random = new Random();
-            for (int k = 0; k < 1000; k++)
+            for (int k = 0; k < 10000; k++)
             {
                 int num_ran1 = random.Next(0, shift_list.Count);
                 int num_ran2 = random.Next(0, shift_list.Count);
@@ -845,9 +919,14 @@ namespace HarrisDetectorCSharp
                     max_avg_y_shift = temp_avg_y_shift;
                     max_inliner_count = temp_inliner_count;
                 }
-                
-
+                if (temp_inliner_count > max_inliner_count)
+                {
+                    max_avg_x_shift = temp_avg_x_shift;
+                    max_avg_y_shift = temp_avg_y_shift;
+                    max_inliner_count = temp_inliner_count;
+                }
             }
+            return Tuple.Create((int)max_avg_x_shift, (int)max_avg_y_shift);
         }
 
         static List<Tuple<int, int>> GetShiftList(List<Tuple<int[], int, int>> feature_list1, List<Tuple<int[], int, int>> feature_list2, List<Tuple<int, int, int>> match_list)
@@ -863,7 +942,7 @@ namespace HarrisDetectorCSharp
             return shift_list;
         }
 
-        static int GetInlinerCount(List<Tuple<int, int>> shift_list, int x_shift, int y_shift)
+        static int GetInlinerCount(List<Tuple<int, int>> shift_list, double x_shift, double y_shift)
         {
             double alpha = 10;
             int count = 0;
@@ -873,6 +952,90 @@ namespace HarrisDetectorCSharp
                     count++;
             }
             return count;
+        }
+
+        static List<int[,]> ImageStitching(List<int[,]> img1, List<int[,]> img2, Tuple<int, int> shift_tuple, Tuple<int, int> loc_tuple)
+        {
+            List<int[,]> result_map = new List<int[,]>();
+            int height = img1[1].GetLength(0);
+            int width1 = img1[1].GetLength(1);
+            int width2 = img2[1].GetLength(1);
+            int temp_dis = (width2 - loc_tuple.Item2 - shift_tuple.Item2) / 2;
+            int buffer = 50;
+            for (int k = 0; k < 3; k++)
+            {
+                int[,] temp_map = new int[height, (width1 + shift_tuple.Item2 + loc_tuple.Item2) / 100 * 100 + 60];
+                for (int i = 0; i < height - 200; i++)
+                    for (int j = 0; j < width2 - temp_dis - buffer; j++)
+                        temp_map[i + 100, j] = img2[k][i + 100, j];
+                for (int i = 0; i < height - 200; i++)
+                    for (int j = temp_dis + buffer; j < width1; j++)
+                        temp_map[i + shift_tuple.Item1 + loc_tuple.Item1 + 100, j + width2 - 2 * temp_dis] = img1[k][i + 100, j];
+                for (int i = 0; i < height - 200; i++)
+                    for (int j = 0; j < 100; j++)
+                        temp_map[i + loc_tuple.Item1 + 100, j + width2 - temp_dis - buffer] = (int)((100 - j) / 100.0 * img2[k][i + 100 + loc_tuple.Item1, j + width2 - temp_dis - buffer] + (j) / 100.0 * img1[k][i + 100 - shift_tuple.Item1, j + temp_dis - buffer]);
+
+                result_map.Add(temp_map);
+
+            }
+            return result_map;
+        }
+
+        static void ImageStitchingTest()
+        {
+            List<string> str = new List<string>();
+            List<Bitmap> image = new List<Bitmap>();
+            //List<List<int[,]>> img = new List<List<int[,]>>();
+            List<List<int[,]>> cylimg = new List<List<int[,]>>();
+            List<List<Tuple<int[], int, int>>> sift_feature = new List<List<Tuple<int[], int, int>>>();
+            List<Tuple<int, int>> shift_tuple = new List<Tuple<int, int>>();
+            for (int i = 1; i < 19; i++)
+            {
+                str.Add("C:/Depp Data/Others/Wallpaper/Lord of the Ring/project2/new_test_vertical_" + i + ".jpg");
+                image.Add(GetImage(str[i - 1]));
+                iHeight = image[0].Height;
+                iWidth = image[0].Width;
+                //img.Add(GetBGRList(image[i - 1]));
+                cylimg.Add(GetCylindricalProjection(GetBGRList(image[i - 1]), 500));
+            }
+            
+            iHeight = cylimg[0][1].GetLength(0);
+            iWidth = cylimg[0][1].GetLength(1);
+            for (int i = 0; i < 18; i++)
+            {
+                sift_feature.Add(NewGetSIFTFeature(cylimg[i], 500));
+                if (i != 0)
+                    shift_tuple.Add(RANSAC(sift_feature[i - 1], sift_feature[i]));
+
+            }
+            //List<Tuple<int[], int, int>> sift_feature_image_1 = NewGetSIFTFeature(cylimg1, 500);
+
+            //Tuple<int, int> shift_tuple_12 = RANSAC(sift_feature_image_1, sift_feature_image_2);
+            //Tuple<int, int> shift_tuple_23 = RANSAC(sift_feature_image_2, sift_feature_image_3);
+            //Tuple<int, int> shift_tuple_34 = RANSAC(sift_feature_image_3, sift_feature_image_4);
+            Tuple<int, int> curr_loc_tuple = Tuple.Create(0,0);
+
+            //Tuple<double, double> shift_tuple_12 = Tuple.Create(17.0, 808.0);
+            //Tuple<double, double> shift_tuple_23 = Tuple.Create(21.0, 814.0);
+
+
+            List<int[,]> curr_stitch_map = new List<int[,]>();
+            for (int i = 17; i > 1; i++)
+            {
+                curr_stitch_map = ImageStitching(cylimg[i - 1], cylimg[i], shift_tuple[i - 1], curr_loc_tuple);
+                curr_loc_tuple = TupleAdd(curr_loc_tuple, shift_tuple[i - 1]);
+            }
+            //curr_stitch_map = ImageStitching(cylimg2, curr_stitch_map, shift_tuple_23, curr_loc_tuple);
+            //curr_loc_tuple = TupleAdd(curr_loc_tuple, shift_tuple_23);
+            //curr_stitch_map = ImageStitching(cylimg1, curr_stitch_map, shift_tuple_12, curr_loc_tuple);
+
+            //VisualizeBGRList(stitch_map_23, "stitch_test_23", 1, stitch_map_23[0].GetLength(0), stitch_map_23[0].GetLength(1));
+            VisualizeBGRList(curr_stitch_map, "stitch_test_final", 1, curr_stitch_map[0].GetLength(0), curr_stitch_map[0].GetLength(1));
+        }
+
+        static Tuple<int, int> TupleAdd(Tuple<int, int> tuple1, Tuple<int, int> tuple2)
+        {
+            return Tuple.Create(tuple1.Item1 + tuple2.Item1, tuple1.Item2 + tuple2.Item2);
         }
     }
 }
