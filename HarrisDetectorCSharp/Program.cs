@@ -212,6 +212,46 @@ namespace HarrisDetectorCSharp
             System.Runtime.InteropServices.Marshal.Copy(PixelValues, 0, newiPtr, PixelValues.Length);
             bitmap.Save("C:/Depp Data/Others/Wallpaper/Lord of the Ring/" + name + ".jpg", ImageFormat.Jpeg);
         }
+        // Visualize an image from a RGB pixel matrix 4 Byte array
+        static void VisualizeBGRList4Byte(List<byte[,]> list, string name, int mode = 0, int height = 0, int width = 0)
+        {
+            int out_height = 0;
+            int out_width = 0;
+            if (mode == 0)
+            {
+                out_height = iHeight;
+                out_width = iWidth;
+            }
+            else
+            {
+                out_height = height;
+                out_width = width;
+            }
+            byte[,] B = list[0];
+            byte[,] G = list[1];
+            byte[,] R = list[2];
+            byte[] PixelValues = new byte[out_width * out_height * 3];
+
+            int iPoint = 0;
+
+            for (int i = 0; i < out_height; i++)
+            {
+                for (int j = 0; j < out_width; j++)
+                {
+                    PixelValues[iPoint++] = B[i, j];
+                    PixelValues[iPoint++] = G[i, j];
+                    PixelValues[iPoint++] = R[i, j];
+                }
+            }
+
+            Bitmap bitmap = new Bitmap(out_width, out_height, PixelFormat.Format24bppRgb);
+            Rectangle newrect = new Rectangle(0, 0, out_width, out_height);
+            BitmapData newbmpData = bitmap.LockBits(newrect,
+                ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
+            IntPtr newiPtr = newbmpData.Scan0;
+            System.Runtime.InteropServices.Marshal.Copy(PixelValues, 0, newiPtr, PixelValues.Length);
+            bitmap.Save("C:/Depp Data/Others/Wallpaper/Lord of the Ring/" + name + ".jpg", ImageFormat.Jpeg);
+        }
         // Visualize an image from a GreyScale pixel matrix
         static void VisualizeGreyImage(int[,] list, string name)
         {
@@ -954,9 +994,9 @@ namespace HarrisDetectorCSharp
             return count;
         }
 
-        static List<int[,]> ImageStitching(List<int[,]> img1, List<int[,]> img2, Tuple<int, int> shift_tuple, Tuple<int, int> loc_tuple)
+        static List<byte[,]> ImageStitching(List<byte[,]> img1, List<byte[,]> img2, Tuple<int, int> shift_tuple, Tuple<int, int> loc_tuple)
         {
-            List<int[,]> result_map = new List<int[,]>();
+            List<byte[,]> result_map = new List<byte[,]>();
             int height = img1[1].GetLength(0);
             int width1 = img1[1].GetLength(1);
             int width2 = img2[1].GetLength(1);
@@ -964,16 +1004,16 @@ namespace HarrisDetectorCSharp
             int buffer = 50;
             for (int k = 0; k < 3; k++)
             {
-                int[,] temp_map = new int[height, (width1 + shift_tuple.Item2 + loc_tuple.Item2) / 100 * 100 + 60];
-                for (int i = 0; i < height - 200; i++)
+                byte[,] temp_map = new byte[height, (width1 + shift_tuple.Item2 + loc_tuple.Item2) / 100 * 100 + 60];
+                for (int i = 0; i < height - 400; i++)
                     for (int j = 0; j < width2 - temp_dis - buffer; j++)
-                        temp_map[i + 100, j] = img2[k][i + 100, j];
-                for (int i = 0; i < height - 200; i++)
-                    for (int j = temp_dis + buffer; j < width1; j++)
-                        temp_map[i + shift_tuple.Item1 + loc_tuple.Item1 + 100, j + width2 - 2 * temp_dis] = img1[k][i + 100, j];
-                for (int i = 0; i < height - 200; i++)
+                        temp_map[i + 200, j] = img2[k][i + 200, j];
+                for (int i = 0; i < height - 500; i++)
+                    for (int j = temp_dis + buffer; j < width1 - 50; j++)
+                        temp_map[i + shift_tuple.Item1 + loc_tuple.Item1 + 250, j + width2 - 2 * temp_dis] = img1[k][i + 250, j];
+                for (int i = 0; i < height - 500; i++)
                     for (int j = 0; j < 100; j++)
-                        temp_map[i + loc_tuple.Item1 + 100, j + width2 - temp_dis - buffer] = (int)((100 - j) / 100.0 * img2[k][i + 100 + loc_tuple.Item1, j + width2 - temp_dis - buffer] + (j) / 100.0 * img1[k][i + 100 - shift_tuple.Item1, j + temp_dis - buffer]);
+                        temp_map[i + loc_tuple.Item1 + 250, j + width2 - temp_dis - buffer] = (byte)((100 - j) / 100.0 * img2[k][i + 250 + loc_tuple.Item1, j + width2 - temp_dis - buffer] + (j) / 100.0 * img1[k][i + 250 - shift_tuple.Item1, j + temp_dis - buffer]);
 
                 result_map.Add(temp_map);
 
@@ -989,6 +1029,7 @@ namespace HarrisDetectorCSharp
             List<List<int[,]>> cylimg = new List<List<int[,]>>();
             List<List<Tuple<int[], int, int>>> sift_feature = new List<List<Tuple<int[], int, int>>>();
             List<Tuple<int, int>> shift_tuple = new List<Tuple<int, int>>();
+            List<Tuple<int, int>> final_shift_tuple = new List<Tuple<int, int>>();
             for (int i = 1; i < 19; i++)
             {
                 str.Add("C:/Depp Data/Others/Wallpaper/Lord of the Ring/project2/new_test_vertical_" + i + ".jpg");
@@ -1001,13 +1042,21 @@ namespace HarrisDetectorCSharp
             
             iHeight = cylimg[0][1].GetLength(0);
             iWidth = cylimg[0][1].GetLength(1);
+            double x_shift_sum = 0;
             for (int i = 0; i < 18; i++)
             {
                 sift_feature.Add(NewGetSIFTFeature(cylimg[i], 500));
                 if (i != 0)
+                {
                     shift_tuple.Add(RANSAC(sift_feature[i - 1], sift_feature[i]));
+                    x_shift_sum += shift_tuple[i - 1].Item1;
+                }
 
             }
+            shift_tuple.Add(RANSAC(sift_feature[17], sift_feature[1]));
+            double x_shift_gap = (shift_tuple[17].Item1 - x_shift_sum) / 17;
+            for (int i = 0; i < 17; i++)
+                final_shift_tuple.Add(Tuple.Create(shift_tuple[i].Item1 + (int)x_shift_gap, shift_tuple[i].Item2));
             //List<Tuple<int[], int, int>> sift_feature_image_1 = NewGetSIFTFeature(cylimg1, 500);
 
             //Tuple<int, int> shift_tuple_12 = RANSAC(sift_feature_image_1, sift_feature_image_2);
@@ -1019,23 +1068,46 @@ namespace HarrisDetectorCSharp
             //Tuple<double, double> shift_tuple_23 = Tuple.Create(21.0, 814.0);
 
 
-            List<int[,]> curr_stitch_map = new List<int[,]>();
-            for (int i = 17; i > 1; i--)
+            List<byte[,]> curr_stitch_map = new List<byte[,]>();
+            curr_stitch_map = Int2ByteMap(cylimg[17]);
+            for (int i = 17; i > 0; i--)
             {
-                curr_stitch_map = ImageStitching(cylimg[i - 1], cylimg[i], shift_tuple[i - 1], curr_loc_tuple);
-                curr_loc_tuple = TupleAdd(curr_loc_tuple, shift_tuple[i - 1]);
+                curr_stitch_map = ImageStitching(Int2ByteMap(cylimg[i - 1]), curr_stitch_map, final_shift_tuple[i - 1], curr_loc_tuple);
+                curr_loc_tuple = TupleAdd(curr_loc_tuple, final_shift_tuple[i - 1]);
             }
             //curr_stitch_map = ImageStitching(cylimg2, curr_stitch_map, shift_tuple_23, curr_loc_tuple);
             //curr_loc_tuple = TupleAdd(curr_loc_tuple, shift_tuple_23);
             //curr_stitch_map = ImageStitching(cylimg1, curr_stitch_map, shift_tuple_12, curr_loc_tuple);
 
             //VisualizeBGRList(stitch_map_23, "stitch_test_23", 1, stitch_map_23[0].GetLength(0), stitch_map_23[0].GetLength(1));
-            VisualizeBGRList(curr_stitch_map, "stitch_test_final", 1, curr_stitch_map[0].GetLength(0), curr_stitch_map[0].GetLength(1));
+            VisualizeBGRList4Byte(curr_stitch_map, "stitch_test_final2", 1, curr_stitch_map[0].GetLength(0), curr_stitch_map[0].GetLength(1));
         }
 
         static Tuple<int, int> TupleAdd(Tuple<int, int> tuple1, Tuple<int, int> tuple2)
         {
             return Tuple.Create(tuple1.Item1 + tuple2.Item1, tuple1.Item2 + tuple2.Item2);
+        }
+
+        static List<byte[,]> Int2ByteMap(List<int[,]> img)
+        {
+            byte[,] R = new byte[iHeight, iWidth];
+            byte[,] G = new byte[iHeight, iWidth];
+            byte[,] B = new byte[iHeight, iWidth];
+            for (int i = 0; i < iHeight; i++)
+            {
+                for (int j = 0; j < iWidth; j++)
+                {
+                    B[i, j] = Convert.ToByte(img[0][i, j]);
+                    G[i, j] = Convert.ToByte(img[1][i, j]);
+                    R[i, j] = Convert.ToByte(img[2][i, j]);
+                }
+            }
+
+            List<byte[,]> result = new List<byte[,]>();
+            result.Add(B);
+            result.Add(G);
+            result.Add(R);
+            return result;
         }
     }
 }
