@@ -64,24 +64,64 @@ namespace HarrisDetectorCSharp
 
         static void Project2()
         {
-            string str1 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/new_test_vertical_1.jpg";
-            string str2 = "C:/Depp Data/Others/Wallpaper/Lord of the Ring/new_test_vertical_2.jpg";
-            Bitmap image1 = GetImage(str1);
-            Bitmap image2 = GetImage(str2);
-            iHeight = image1.Height;
-            iWidth = image1.Width;
+            List<string> str = new List<string>();
+            List<Bitmap> image = new List<Bitmap>();
+            //List<List<int[,]>> img = new List<List<int[,]>>();
+            List<List<int[,]>> cylimg = new List<List<int[,]>>();
+            List<List<Tuple<int[], int, int>>> sift_feature = new List<List<Tuple<int[], int, int>>>();
+            List<Tuple<int, int>> shift_tuple = new List<Tuple<int, int>>();
+            List<Tuple<int, int>> final_shift_tuple = new List<Tuple<int, int>>();
+            for (int i = 1; i < 19; i++)
+            {
+                str.Add("C:/Depp Data/Others/Wallpaper/Lord of the Ring/project2/new_test_vertical_" + i + ".jpg");
+                image.Add(GetImage(str[i - 1]));
+                iHeight = image[0].Height;
+                iWidth = image[0].Width;
+                //img.Add(GetBGRList(image[i - 1]));
+                cylimg.Add(GetCylindricalProjection(GetBGRList(image[i - 1]), 500));
+            }
+
+            iHeight = cylimg[0][1].GetLength(0);
+            iWidth = cylimg[0][1].GetLength(1);
+            double x_shift_sum = 0;
+            for (int i = 0; i < 18; i++)
+            {
+                sift_feature.Add(NewGetSIFTFeature(cylimg[i], 500));
+                if (i != 0)
+                {
+                    shift_tuple.Add(RANSAC(sift_feature[i - 1], sift_feature[i]));
+                    x_shift_sum += shift_tuple[i - 1].Item1;
+                }
+
+            }
+            shift_tuple.Add(RANSAC(sift_feature[17], sift_feature[1]));
+            double x_shift_gap = (shift_tuple[17].Item1 - x_shift_sum) / 17;
+            for (int i = 0; i < 17; i++)
+                final_shift_tuple.Add(Tuple.Create(shift_tuple[i].Item1 + (int)x_shift_gap, shift_tuple[i].Item2));
+            //List<Tuple<int[], int, int>> sift_feature_image_1 = NewGetSIFTFeature(cylimg1, 500);
+
+            //Tuple<int, int> shift_tuple_12 = RANSAC(sift_feature_image_1, sift_feature_image_2);
+            //Tuple<int, int> shift_tuple_23 = RANSAC(sift_feature_image_2, sift_feature_image_3);
+            //Tuple<int, int> shift_tuple_34 = RANSAC(sift_feature_image_3, sift_feature_image_4);
+            Tuple<int, int> curr_loc_tuple = Tuple.Create(0, 0);
+
+            //Tuple<double, double> shift_tuple_12 = Tuple.Create(17.0, 808.0);
+            //Tuple<double, double> shift_tuple_23 = Tuple.Create(21.0, 814.0);
 
 
-            List<int[,]> img1 = GetBGRList(image1);
-            List<int[,]> img2 = GetBGRList(image2);
-            List<int[,]> cylimg1 = GetCylindricalProjection(img1, 500);
-            List<int[,]> cylimg2 = GetCylindricalProjection(img2, 500);
-            int[,] responsemap1 = ANMSHarrisDetector(cylimg1, 500);
-            List<Tuple<int[], int, int>> sift_feature_image_1 = GetSIFTFeature(topklist);
-            int[,] responsemap2 = ANMSHarrisDetector(cylimg2, 500);
-            List<Tuple<int[], int, int>> sift_feature_image_2 = GetSIFTFeature(topklist);
+            List<byte[,]> curr_stitch_map = new List<byte[,]>();
+            curr_stitch_map = Int2ByteMap(cylimg[17]);
+            for (int i = 17; i > 0; i--)
+            {
+                curr_stitch_map = ImageStitching(Int2ByteMap(cylimg[i - 1]), curr_stitch_map, final_shift_tuple[i - 1], curr_loc_tuple);
+                curr_loc_tuple = TupleAdd(curr_loc_tuple, final_shift_tuple[i - 1]);
+            }
+            //curr_stitch_map = ImageStitching(cylimg2, curr_stitch_map, shift_tuple_23, curr_loc_tuple);
+            //curr_loc_tuple = TupleAdd(curr_loc_tuple, shift_tuple_23);
+            //curr_stitch_map = ImageStitching(cylimg1, curr_stitch_map, shift_tuple_12, curr_loc_tuple);
 
-            Tuple<int, int> shift_tuple = RANSAC(sift_feature_image_1, sift_feature_image_2);
+            //VisualizeBGRList(stitch_map_23, "stitch_test_23", 1, stitch_map_23[0].GetLength(0), stitch_map_23[0].GetLength(1));
+            VisualizeBGRList4Byte(curr_stitch_map, "stitch_test_final3", 1, curr_stitch_map[0].GetLength(0), curr_stitch_map[0].GetLength(1));
         }
 
         // Get a Bitmap instance from a path string
